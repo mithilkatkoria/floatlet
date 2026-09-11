@@ -18,7 +18,14 @@ if (!$existing -and !$NoStartup -and !$AcceptDefaults) {
     if ($choice -match '^[Nn]') { $NoStartup=$true }
 }
 New-Item -ItemType Directory -Path $install -Force | Out-Null
-Copy-Item -LiteralPath $sourceExe -Destination $target -Force
+# Windows may briefly retain the image mapping after the process exits.
+for ($attempt=0; $attempt -lt 12; $attempt++) {
+    try { Copy-Item -LiteralPath $sourceExe -Destination $target -Force; break }
+    catch [System.IO.IOException] {
+        if ($attempt -eq 11) { throw }
+        Start-Sleep -Milliseconds 250
+    }
+}
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'uninstall.ps1') -Destination $install -Force
 Set-Content -LiteralPath (Join-Path $install 'installed.marker') -Value 'GlideIsland 0.3.0'
 $shell=New-Object -ComObject WScript.Shell
