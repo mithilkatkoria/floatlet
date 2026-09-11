@@ -1,0 +1,21 @@
+name: Bug report
+description: Report a reproducible Glide Island problem
+body:
+  - type: textarea
+    id: behavior
+    attributes:
+      label: What happened?
+      description: Explain expected and actual behavior. Never include private calendar links or personal files.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Version and hardware
+      placeholder: Glide Island version, Windows build, architecture, monitor scaling

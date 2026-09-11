@@ -1,0 +1,13 @@
+/out/
+/packages/
+/docs/evidence/
+/docs/COMPACT_UPDATE.md
+/docs/DELAY_UPDATE.md
+/docs/architecture.md
+/BUILD_STATUS.md
+/.release/
+*.user
+*.pdb
+calendar.bin
+settings.json
+review-settings.json

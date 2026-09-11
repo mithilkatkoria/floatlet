@@ -1,0 +1,15 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {"name":"x64","generator":"Visual Studio 17 2022","architecture":"x64","binaryDir":"${sourceDir}/out/x64","cacheVariables":{"CMAKE_SYSTEM_VERSION":"10.0.26100.0"}},
+    {"name":"arm64","generator":"Visual Studio 17 2022","architecture":"ARM64","binaryDir":"${sourceDir}/out/arm64","cacheVariables":{"CMAKE_SYSTEM_VERSION":"10.0.26100.0"}}
+  ],
+  "buildPresets": [
+    {"name":"x64","configurePreset":"x64","configuration":"Release"},
+    {"name":"arm64","configurePreset":"arm64","configuration":"Release"}
+  ],
+  "testPresets": [
+    {"name":"x64","configurePreset":"x64","configuration":"Release","output":{"outputOnFailure":true}},
+    {"name":"arm64","configurePreset":"arm64","configuration":"Release","output":{"outputOnFailure":true}}
+  ]
+}

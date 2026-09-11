@@ -1,0 +1,27 @@
+name: Windows build
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    name: Windows x64
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B out/x64 -G "Visual Studio 17 2022" -A x64
+      - name: Build
+        run: cmake --build out/x64 --config Release --parallel 2
+      - name: Test
+        run: ctest --test-dir out/x64 -C Release --output-on-failure
+      - name: Package
+        shell: pwsh
+        run: ./scripts/package.ps1 -Architecture x64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GlideIsland-x64
+          path: packages/GlideIsland-0.3.0-x64.zip
