@@ -85,7 +85,7 @@ struct App {
         }
     }
     void error(const wchar_t* text){message=text;render();}
-    void tray(bool remove=false){if(review)return;NOTIFYICONDATAW n{sizeof(n)};n.hWnd=hwnd;n.uID=1;n.uFlags=NIF_MESSAGE|NIF_ICON|NIF_TIP;n.uCallbackMessage=Tray;n.hIcon=LoadIconW(GetModuleHandleW(nullptr),MAKEINTRESOURCEW(101));wcscpy_s(n.szTip,L"Glide Island | Ctrl+Alt+Space");Shell_NotifyIconW(remove?NIM_DELETE:NIM_ADD,&n);}
+    void tray(bool remove=false){if(review)return;NOTIFYICONDATAW n{sizeof(n)};n.hWnd=hwnd;n.uID=1;n.uFlags=NIF_MESSAGE|NIF_ICON|NIF_TIP;n.uCallbackMessage=Tray;n.hIcon=LoadIconW(GetModuleHandleW(nullptr),MAKEINTRESOURCEW(101));wcscpy_s(n.szTip,hotkey?L"Glide Island | Ctrl+Alt+Space":L"Glide Island | Click to open");Shell_NotifyIconW(remove?NIM_DELETE:NIM_ADD,&n);}
     void dirty(){SetTimer(hwnd,3,500,nullptr);}
     void focus(){if(interactive)return;previousFocus=GetForegroundWindow();interactive=true;SetWindowLongPtrW(hwnd,GWL_EXSTYLE,GetWindowLongPtrW(hwnd,GWL_EXSTYLE)&~WS_EX_NOACTIVATE);SetForegroundWindow(hwnd);SetFocus(hwnd);}
     void unfocus(){bool restore=interactive&&GetForegroundWindow()==hwnd;interactive=false;SetWindowLongPtrW(hwnd,GWL_EXSTYLE,GetWindowLongPtrW(hwnd,GWL_EXSTYLE)|WS_EX_NOACTIVATE);if(restore&&IsWindow(previousFocus))SetForegroundWindow(previousFocus);previousFocus=nullptr;}
@@ -97,7 +97,9 @@ struct App {
         followTimer();
         if(model.state==State::Hidden||model.state==State::Unavailable){ShowWindow(hwnd,SW_HIDE);return;}
         BOOL motion=TRUE;SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION,0,&motion,0);
-        auto desired=sizeFor(model.state,settings.touch);if(model.state==State::Collapsed&&settings.iconOnly&&!mic.active&&!countdown.active()&&!countdown.finished)desired.w=64;
+        auto desired=sizeFor(model.state,settings.touch);auto currentMedia=media?media->get():MediaSnapshot{};bool activity=(mic.active&&settings.callControls)||countdown.active()||countdown.finished;
+        if(!activity&&!currentMedia.play&&airpodsNotice.empty()&&(model.state==State::Collapsed||model.state==State::Peek))desired={model.state==State::Peek?96.f:84.f,settings.touch?44.f:model.state==State::Peek?32.f:28.f};
+        else if(model.state==State::Collapsed&&settings.iconOnly&&!activity)desired.w=64;
         geometry.configure(monitor,desired,settings.alignment,motion!=FALSE&&!settings.reduceMotion);
         monitor=geometry.monitor;dpi=geometry.dpi;size=geometry.target;syncCanvas();
         ShowWindow(hwnd,SW_SHOWNOACTIVATE);render(true);
@@ -114,7 +116,8 @@ struct App {
         else if((model.state==State::Collapsed||model.state==State::Peek)&&(countdown.active()||countdown.finished)){
             marks.push_back({Glyph::Timer,12,(size.h-24)/2,24,true,false,24,countdown.fraction(GetTickCount64())});add(countdown.finished?L"Timer complete":countdown.text(GetTickCount64()),48,(size.h-21)/2,15,false,143);icon(countdown.running?Glyph::Pause:Glyph::Play,size.w-32,(size.h-14)/2,14);
         }
-        else if(model.state==State::Collapsed){icon(m.artwork?Glyph::Disc:Glyph::Logo,12,(size.h-23)/2,23);if(!settings.iconOnly)add(m.play?m.title:L"Glide Island",44,(size.h-19)/2,12.5f,false,140);icon(m.playing?Glyph::Pause:Glyph::Play,settings.iconOnly?43.f:195.f,(size.h-13)/2,13,false,!m.play);}
+        else if((model.state==State::Collapsed||model.state==State::Peek)&&!m.play&&airpodsNotice.empty()){ /* Resting pill intentionally has no text or disabled transport. */ }
+        else if(model.state==State::Collapsed){icon(m.artwork?Glyph::Disc:Glyph::Logo,12,(size.h-23)/2,23);if(!settings.iconOnly)add(m.title,44,(size.h-19)/2,12.5f,false,140);icon(m.playing?Glyph::Pause:Glyph::Play,settings.iconOnly?43.f:195.f,(size.h-13)/2,13,false,!m.play);}
         else if(model.state==State::Peek&&!airpodsNotice.empty()){icon(Glyph::AirPods,16,11,34);add(L"AirPods",64,9,14);add(L"Connected for audio",64,31,11,true);}
         else if(model.state==State::Peek){icon(Glyph::Disc,12,10,36);if(m.spotify)icon(Glyph::Spotify,37,34,12);add(m.title,60,9,13,false,197);add(m.play?m.artist:L"Your music",60,32,11,true,88);icon(Glyph::Previous,158,34,14,false,!m.previous);icon(m.playing?Glyph::Pause:Glyph::Play,196,34,14,false,!m.play);icon(Glyph::Next,234,34,14,false,!m.next);}
         else {
@@ -147,7 +150,7 @@ struct App {
                 add(L"Make it yours",20,48,18);add(L"Glide Island",20,74,11,true);
                 const wchar_t* labels[]={L"Icon-only music bar",L"Follow your pointer",L"Larger touch targets",L"Reduce motion",L"Microphone controls"};bool values[]={settings.iconOnly,settings.followPointer,settings.touch,settings.reduceMotion,settings.callControls};
                 for(int i=0;i<5;++i){marks.push_back({Glyph::Card,12,99+i*33.f,332,false,false,30});add(labels[i],24,105+i*33.f,12);icon(Glyph::Toggle,294,104+i*33.f,34,values[i]);}
-                add(agenda.connected?L"Google Calendar connected":L"Connect Google Calendar",24,278,12);add(L">",318,277,14);add(L"Start with Windows",24,308,12);add(L">",318,307,14);add(L"Ctrl+Alt+Space to open. F10 for all actions.",24,335,10,true);
+                add(agenda.connected?L"Google Calendar connected":L"Connect Google Calendar",24,278,12);add(L">",318,277,14);add(L"Start with Windows",24,308,12);add(L">",318,307,14);add(hotkey?L"Ctrl+Alt+Space to open. F10 for all actions.":L"Shortcut in use. Click the island to open.",24,335,10,true);
             }
             else if(model.state==State::Agenda){
                 add(L"< Calendar",20,50,12,true,100);add(L"Refresh",272,50,11,true,60);
@@ -246,7 +249,7 @@ struct App {
         }
     }
     void menu(){focus();HMENU menu=CreatePopupMenu();auto item=[&](int id,const wchar_t* label,UINT flags=0){AppendMenuW(menu,MF_STRING|flags,id,label);};
-        item(Show,L"Show");item(Hide,L"Hide (Ctrl+Alt+H)");item(Music,L"Music");item(Files,L"Tray");item(Controls,L"Controls");item(CallPanel,L"Microphone controls");item(TimerPanel,L"Timer");item(PreferencesPanel,L"Preferences");item(Pin,L"Keep expanded",model.pinned?MF_CHECKED:0);item(Add,L"Add files...");
+        item(Show,L"Show");item(Hide,emergency?L"Hide (Ctrl+Alt+H)":L"Hide");item(Music,L"Music");item(Files,L"Tray");item(Controls,L"Controls");item(CallPanel,L"Microphone controls");item(TimerPanel,L"Timer");item(PreferencesPanel,L"Preferences");item(Pin,L"Keep expanded",model.pinned?MF_CHECKED:0);item(Add,L"Add files...");
         auto m=media->get();item(Play,m.playing?L"Pause":L"Play",m.play?0:MF_GRAYED);item(Previous,L"Previous track",m.previous?0:MF_GRAYED);item(Next,L"Next track",m.next?0:MF_GRAYED);
         item(VolDown,L"Volume down");item(Mute,L"Toggle mute");item(VolUp,L"Volume up");
         if(!settings.paths.empty()){HMENU files=CreatePopupMenu();for(std::size_t i=0;i<settings.paths.size();++i){HMENU entry=CreatePopupMenu();AppendMenuW(entry,MF_STRING,RevealBase+i,L"Reveal in Explorer");AppendMenuW(entry,MF_STRING,RemoveBase+i,L"Remove reference (keep original)");auto name=std::filesystem::path(settings.paths[i]).filename().wstring();AppendMenuW(files,MF_POPUP,reinterpret_cast<UINT_PTR>(entry),name.c_str());}AppendMenuW(menu,MF_POPUP,reinterpret_cast<UINT_PTR>(files),L"Tray actions");}
@@ -254,7 +257,7 @@ struct App {
         item(FollowPointer,L"Follow pointer between displays",settings.followPointer?MF_CHECKED:0);item(Touch,L"Larger touch capsule",settings.touch?MF_CHECKED:0);item(Left,L"Place left");item(Center,L"Place centre");item(Right,L"Place right");item(OtherMonitor,L"Move to next display");item(SettingsHelp,L"Preferences");item(Quit,L"Quit");
         POINT p;GetCursorPos(&p);menuOpen=true;int id=TrackPopupMenu(menu,TPM_RETURNCMD|TPM_NONOTIFY|TPM_RIGHTBUTTON,p.x,p.y,0,hwnd,nullptr);menuOpen=false;DestroyMenu(menu);if(id)command(id);if(!tracking&&!model.pinned)SetTimer(hwnd,2,220,nullptr);
     }
-    void click(float x,float y){x-=(geometry.bounds.w*96.f/dpi-size.w)/2;if((model.state==State::Collapsed||model.state==State::Peek)&&mic.active&&settings.callControls){command(x>size.w-45?MicrophoneMute:CallPanel);return;}if((model.state==State::Collapsed||model.state==State::Peek)&&(countdown.active()||countdown.finished)){if(x>size.w-45&&countdown.active())command(TimerPause);else command(TimerPanel);return;}if(model.state==State::Peek&&airpodsNotice.empty()){int hit=hoverTransport(x,y);if(hit>=0){auto m=media->get();if(hit==0&&m.previous)command(Previous);else if(hit==1&&m.play)command(Play);else if(hit==2&&m.next)command(Next);return;}}if(model.state==State::Collapsed||model.state==State::Peek){focus();event(Event::Open);return;}if(y<40){if(x>size.w-43)command(Pin);else if(x>size.w-73)command(PreferencesPanel);else if(x<266)command(x<74?Music:x<138?Files:x<202?Controls:TimerPanel);return;}
+    void click(float x,float y){x-=(geometry.bounds.w*96.f/dpi-size.w)/2;if((model.state==State::Collapsed||model.state==State::Peek)&&mic.active&&settings.callControls){command(x>size.w-45?MicrophoneMute:CallPanel);return;}if((model.state==State::Collapsed||model.state==State::Peek)&&(countdown.active()||countdown.finished)){if(x>size.w-45&&countdown.active())command(TimerPause);else command(TimerPanel);return;}if(model.state==State::Peek&&airpodsNotice.empty()&&media->get().play){int hit=hoverTransport(x,y);if(hit>=0){auto m=media->get();if(hit==0&&m.previous)command(Previous);else if(hit==1&&m.play)command(Play);else if(hit==2&&m.next)command(Next);return;}}if(model.state==State::Collapsed||model.state==State::Peek){focus();event(Event::Open);return;}if(y<40){if(x>size.w-43)command(Pin);else if(x>size.w-73)command(PreferencesPanel);else if(x<266)command(x<74?Music:x<138?Files:x<202?Controls:TimerPanel);return;}
         if(model.state==State::Call){if(y>=110&&y<146&&x<156)command(MicrophoneMute);return;}
         if(model.state==State::Timer){if(y>=165&&y<203){int i=std::clamp(int((x-16)/80),0,3);command(Timer1+i);}else if(y>=209){if(x<48)command(TimerLess);else if(x<90)command(TimerMore);else if(x<215)command(countdown.active()?TimerPause:TimerStart);else command(TimerCancel);}return;}
         if(model.state==State::Preferences){if(y>=99&&y<264){int row=int((y-99)/33);int actions[]={IconOnly,FollowPointer,Touch,ReduceMotion,CallControls};command(actions[row]);render();}else if(y>=271&&y<301)command(CalendarConnect);else if(y>=302&&y<331)command(StartupSettings);return;}
@@ -278,7 +281,7 @@ struct App {
             KillTimer(hwnd,2);if(!tracking){tracking=true;TRACKMOUSEEVENT t{sizeof(t),TME_LEAVE,hwnd,0};TrackMouseEvent(&t);SetTimer(hwnd,1,120,nullptr);}return 0;
         case WM_MOUSELEAVE:tracking=false;KillTimer(hwnd,1);SetTimer(hwnd,2,220,nullptr);return 0;
         case WM_LBUTTONDBLCLK:{float x=localX(GET_X_LPARAM(l)),y=GET_Y_LPARAM(l)*96.f/dpi;if(model.state==State::Calendar&&y>=108&&y<270&&x>=17&&x<325){auto day=calendar.dayAt(int((y-108)/27)*7+int((x-17)/44));if(day){calendar.selected=day;command(AgendaPanel);}}return 0;}
-        case WM_LBUTTONDOWN:{down={GET_X_LPARAM(l),GET_Y_LPARAM(l)};float x=localX(down.x),y=down.y*96.f/dpi;if((model.state==State::Collapsed||model.state==State::Peek)&&x>size.w-45&&(mic.active||countdown.active()))return 0;if(model.state==State::Peek&&airpodsNotice.empty()&&hoverTransport(x,y)>=0)return 0;focus();
+        case WM_LBUTTONDOWN:{down={GET_X_LPARAM(l),GET_Y_LPARAM(l)};float x=localX(down.x),y=down.y*96.f/dpi;if((model.state==State::Collapsed||model.state==State::Peek)&&x>size.w-45&&(mic.active||countdown.active()))return 0;if(model.state==State::Peek&&airpodsNotice.empty()&&media->get().play&&hoverTransport(x,y)>=0)return 0;focus();
             if(model.state==State::Controls&&x>=56&&x<=328){if(y>=251&&y<=286&&audio&&audio->available)slider=1;else if(y>=179&&y<=214&&controls.brightness>=0)slider=2;if(slider){SetCapture(hwnd);sliderTo(down.x,false);return 0;}}
             if(model.state==State::Shelf&&x<303&&y>=50&&y<140){int row=int((y-50)/30)+shelfOffset;if(row<int(settings.paths.size())){downItem=row;SetCapture(hwnd);}}return 0;}
         case WM_LBUTTONUP:if(slider){sliderTo(GET_X_LPARAM(l),true);slider=0;ReleaseCapture();return 0;}ReleaseCapture();if(downItem>=0){downItem=-1;return 0;}click(GET_X_LPARAM(l)*96.f/dpi,GET_Y_LPARAM(l)*96.f/dpi);return 0;
@@ -303,7 +306,7 @@ struct App {
         case WM_ACTIVATE:if(LOWORD(w)==WA_INACTIVE&&interactive){interactive=false;SetWindowLongPtrW(hwnd,GWL_EXSTYLE,GetWindowLongPtrW(hwnd,GWL_EXSTYLE)|WS_EX_NOACTIVATE);if(!captureActive()&&!captureWindow(reinterpret_cast<HWND>(l)))SetTimer(hwnd,2,220,nullptr);}return 0;
         case WM_WTSSESSION_CHANGE:if(w==WTS_SESSION_LOCK){beforeSuspend=model.state;suspended=true;event(Event::Suspend);}else if(w==WTS_SESSION_UNLOCK){suspended=false;model.state=beforeSuspend;layout();media->command(3);}return 0;
         case WM_POWERBROADCAST:if(w==PBT_APMSUSPEND){beforeSuspend=model.state;suspended=true;event(Event::Suspend);}else if(w==PBT_APMRESUMEAUTOMATIC){suspended=false;model.state=beforeSuspend;layout();media->command(3);}else if(w==PBT_POWERSETTINGCHANGE){auto p=reinterpret_cast<POWERBROADCAST_SETTING*>(l);if(p->PowerSetting==GUID_CONSOLE_DISPLAY_STATE&&p->DataLength==4){DWORD state=0;memcpy(&state,p->Data,4);suspended=state==0;if(suspended){KillTimer(hwnd,4);KillTimer(hwnd,5);KillTimer(hwnd,6);follower.reset();}else layout();}}else render();return TRUE;
-        case WM_APP+2:render();return 0;case WM_APP+3:media->command(3);return 0;case WM_APP+4:media->command(4);return 0;
+        case WM_APP+2:if(model.state==State::Collapsed||model.state==State::Peek)layout();else render();return 0;case WM_APP+3:media->command(3);return 0;case WM_APP+4:media->command(4);return 0;
         case Tray:if(l==WM_RBUTTONUP||l==WM_CONTEXTMENU)menu();else if(l==WM_LBUTTONUP)command(model.state==State::Hidden?Show:Music);return 0;
         case WM_CLOSE:command(Hide);return 0;
         case WM_DESTROY:microphone.reset();feed.reset();if(audio){audio->stop();audio->Release();audio=nullptr;}system.reset();captureNotifyWindow=nullptr;if(foregroundHook)UnhookWinEvent(foregroundHook);callbackWindow->store(nullptr);media->stop();try{winrt::Windows::Networking::Connectivity::NetworkInformation::NetworkStatusChanged(networkToken);}catch(...){}RevokeDragDrop(hwnd);if(drop){drop->Release();drop=nullptr;}UnregisterHotKey(hwnd,1);UnregisterHotKey(hwnd,2);WTSUnRegisterSessionNotification(hwnd);if(powerNotify)UnregisterPowerSettingNotification(powerNotify);tray(true);writer->put(settings);PostQuitMessage(0);return 0;
@@ -332,7 +335,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR args,int){
         app.media=std::make_shared<Media>(hwnd);app.media->start();
         app.drop=new DropTarget;app.drop->hovering=[&](bool yes){app.event(yes?Event::DragEnter:Event::DragLeave);};app.drop->accepted=[&](auto paths){app.model.panel(State::Shelf);app.add(std::move(paths));app.layout();};app.drop->rejected=[&]{app.error(L"Unsupported drop. Use real files with copy allowed.");};winrt::check_hresult(RegisterDragDrop(hwnd,app.drop));
         if(!review){app.hotkey=RegisterHotKey(hwnd,1,MOD_CONTROL|MOD_ALT|MOD_NOREPEAT,VK_SPACE);app.emergency=RegisterHotKey(hwnd,2,MOD_CONTROL|MOD_ALT|MOD_NOREPEAT,'H');
-        if(!app.hotkey||!app.emergency)MessageBoxW(hwnd,L"A shortcut is already in use. Glide Island has not taken it over. Use the tray icon or right-click the capsule.",L"Glide Island shortcut unavailable",MB_OK|MB_ICONINFORMATION);
+        // Optional hotkeys may belong to another app. Keep startup silent; preferences report availability.
         }
         WTSRegisterSessionNotification(hwnd,NOTIFY_FOR_THIS_SESSION);app.powerNotify=RegisterPowerSettingNotification(hwnd,&GUID_CONSOLE_DISPLAY_STATE,DEVICE_NOTIFY_WINDOW_HANDLE);
         app.callbackWindow->store(hwnd);auto destination=app.callbackWindow;
