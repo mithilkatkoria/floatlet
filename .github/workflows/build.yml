@@ -23,5 +23,5 @@ jobs:
         run: ./scripts/package.ps1 -Architecture x64
       - uses: actions/upload-artifact@v4
         with:
-          name: GlideIsland-x64
-          path: packages/GlideIsland-0.3.0-x64.zip
+          name: Floatlet-x64
+          path: packages/Floatlet-0.4.0-x64.zip

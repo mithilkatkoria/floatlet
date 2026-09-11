@@ -1,7 +1,7 @@
 param([int]$Seconds=30)
 $ErrorActionPreference='Stop'
-$expected=@((Join-Path $env:LOCALAPPDATA 'Programs\DelightIsland\GlideIsland.exe'),(Join-Path $env:LOCALAPPDATA 'Programs\GlideIsland\GlideIsland.exe'))
-$matches=@(Get-Process GlideIsland | Where-Object { $_.Path -in $expected })
+$expected=@((Join-Path $env:LOCALAPPDATA 'Programs\DelightIsland\Floatlet.exe'),(Join-Path $env:LOCALAPPDATA 'Programs\Floatlet\Floatlet.exe'))
+$matches=@(Get-Process Floatlet | Where-Object { $_.Path -in $expected })
 if ($matches.Count -ne 1) { throw 'Expected exactly one installed island process.' }
 $islandId=$matches[0].Id
 $start=Get-Process -Id $islandId

@@ -1,6 +1,6 @@
-# Validation for 0.3.0
+# Validation history
 
-Validated on Windows 11 ARM64 using the x64 executable under emulation, with three connected monitors and mixed DPI.
+The following resource observations were recorded for 0.3.0, before the Floatlet rename. They are not new 0.4.0 measurements.\n\nValidated on Windows 11 ARM64 using the x64 executable under emulation, with three connected monitors and mixed DPI.
 
 - Release build: four CTest suites passed (model, storage, integrations, calendar).
 - Interactive checks covered controls, preferences, timer countdown and compact state, nearby Wi-Fi display, and the Windows Night light destination.
@@ -9,3 +9,4 @@ Validated on Windows 11 ARM64 using the x64 executable under emulation, with thr
 - Battery drain, GPU use and 120 Hz animation pacing were not measured. Third-party caller identity and call commands are not implemented. Network switching and live call muting were not exercised during normal user activity.
 
 Reproduce with the build script, interactive graphics/window tests and `scripts/measure_background.ps1`. Keep personal diagnostics and screenshots out of public contributions.
+

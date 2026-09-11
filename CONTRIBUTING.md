@@ -1,4 +1,4 @@
-# Contributing to Glide Island
+# Contributing to Floatlet
 
 Issues and pull requests are welcome. Maintained by [Mithil Katkoria](https://github.com/mithilkatkoria).
 

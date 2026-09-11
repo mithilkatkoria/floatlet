@@ -18,7 +18,7 @@ class CalendarFeed {
     static std::string download(const std::wstring& url){
         if(!validUrl(url))throw std::runtime_error("Invalid Google subscription URL");
         auto path=url.substr(std::wstring(L"https://calendar.google.com").size());
-        Internet session(WinHttpOpen(L"GlideIsland/0.3",WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,WINHTTP_NO_PROXY_NAME,WINHTTP_NO_PROXY_BYPASS,0));WinHttpSetTimeouts(session,5000,5000,5000,5000);
+        Internet session(WinHttpOpen(L"Floatlet/0.3",WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,WINHTTP_NO_PROXY_NAME,WINHTTP_NO_PROXY_BYPASS,0));WinHttpSetTimeouts(session,5000,5000,5000,5000);
         Internet connection(WinHttpConnect(session,L"calendar.google.com",INTERNET_DEFAULT_HTTPS_PORT,0));
         Internet request(WinHttpOpenRequest(connection,L"GET",path.c_str(),nullptr,WINHTTP_NO_REFERER,WINHTTP_DEFAULT_ACCEPT_TYPES,WINHTTP_FLAG_SECURE));DWORD disabled=WINHTTP_DISABLE_REDIRECTS|WINHTTP_DISABLE_COOKIES;WinHttpSetOption(request,WINHTTP_OPTION_DISABLE_FEATURE,&disabled,sizeof(disabled));
         if(!WinHttpSendRequest(request,WINHTTP_NO_ADDITIONAL_HEADERS,0,WINHTTP_NO_REQUEST_DATA,0,0,0)||!WinHttpReceiveResponse(request,nullptr))winrt::throw_last_error();DWORD status=0,bytes=sizeof(status);if(!WinHttpQueryHeaders(request,WINHTTP_QUERY_STATUS_CODE|WINHTTP_QUERY_FLAG_NUMBER,WINHTTP_HEADER_NAME_BY_INDEX,&status,&bytes,WINHTTP_NO_HEADER_INDEX)||status!=200)throw std::runtime_error("Calendar server rejected request");
@@ -26,7 +26,7 @@ class CalendarFeed {
     }
     void store(const std::wstring& value){
         if(value.empty()){std::error_code error;std::filesystem::remove(file,error);if(error)throw std::runtime_error("Calendar subscription could not be removed");return;}
-        DATA_BLOB input{DWORD(value.size()*sizeof(wchar_t)),reinterpret_cast<BYTE*>(const_cast<wchar_t*>(value.data()))},output{};if(!CryptProtectData(&input,L"Glide Island calendar",nullptr,nullptr,nullptr,CRYPTPROTECT_UI_FORBIDDEN,&output))winrt::throw_last_error();
+        DATA_BLOB input{DWORD(value.size()*sizeof(wchar_t)),reinterpret_cast<BYTE*>(const_cast<wchar_t*>(value.data()))},output{};if(!CryptProtectData(&input,L"Floatlet calendar",nullptr,nullptr,nullptr,CRYPTPROTECT_UI_FORBIDDEN,&output))winrt::throw_last_error();
         try{std::filesystem::create_directories(file.parent_path());auto temp=file;temp+=L".tmp";{std::ofstream stream(temp,std::ios::binary|std::ios::trunc);stream.write(reinterpret_cast<char*>(output.pbData),output.cbData);stream.flush();if(!stream)throw std::runtime_error("Calendar settings write failed");}if(!MoveFileExW(temp.c_str(),file.c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH))winrt::throw_last_error();}catch(...){LocalFree(output.pbData);throw;}LocalFree(output.pbData);
     }
     void load(){try{if(!std::filesystem::exists(file)||std::filesystem::file_size(file)>16384)return;std::ifstream stream(file,std::ios::binary);std::string bytes((std::istreambuf_iterator<char>(stream)),{});DATA_BLOB input{DWORD(bytes.size()),reinterpret_cast<BYTE*>(bytes.data())},output{};if(CryptUnprotectData(&input,nullptr,nullptr,nullptr,nullptr,CRYPTPROTECT_UI_FORBIDDEN,&output)){if(output.cbData%sizeof(wchar_t)==0)url.assign(reinterpret_cast<wchar_t*>(output.pbData),output.cbData/sizeof(wchar_t));LocalFree(output.pbData);if(!validUrl(url))url.clear();}}catch(...){url.clear();}snapshot.connected=!url.empty();}

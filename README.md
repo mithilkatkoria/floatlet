@@ -1,12 +1,12 @@
-# Glide Island
+# Floatlet
 
-[![Windows build](https://github.com/mithilkatkoria/glide-island/actions/workflows/build.yml/badge.svg)](https://github.com/mithilkatkoria/glide-island/actions/workflows/build.yml)
+[![Windows build](https://github.com/mithilkatkoria/floatlet/actions/workflows/build.yml/badge.svg)](https://github.com/mithilkatkoria/floatlet/actions/workflows/build.yml)
 
 A compact Dynamic Island companion for Windows 11. Music, a temporary file tray, quick controls, timers and a calendar above your workspace. Built in C++20 with native Windows composition, without Electron or a bundled browser.
 
 Created by [Mithil Katkoria](https://github.com/mithilkatkoria). Independent open-source software, unaffiliated with Apple, Microsoft or integrated applications.
 
-**[Download](https://github.com/mithilkatkoria/glide-island/releases)** | [Contribute](CONTRIBUTING.md) | [MIT license](LICENSE)
+**[Download](https://github.com/mithilkatkoria/floatlet/releases)** | [Contribute](CONTRIBUTING.md) | [MIT license](LICENSE)
 
 ## Features
 
@@ -25,7 +25,7 @@ Runs outside the taskbar and Alt+Tab. Hover to preview, click to expand, and lea
 
 ## Install
 
-Extract the release ZIP. Run `GlideIsland.exe` for portable use, or install for your Windows user:
+Extract the release ZIP. Run `Floatlet.exe` for portable use, or install for your Windows user:
 
 ```powershell
 .\install.ps1 -AcceptDefaults -Launch
@@ -37,7 +37,7 @@ The gear opens preferences. Ctrl+Alt+Space opens with keyboard focus, Escape col
 
 ## Calendar subscription
 
-In Google Calendar on the web, open **Settings > Settings for my calendars > your calendar > Integrate calendar**. Copy its **Secret address in iCal format** into Glide Island's **Preferences > Google Calendar** dialog. Treat that address as a password; never include it in issues or screenshots.
+In Google Calendar on the web, open **Settings > Settings for my calendars > your calendar > Integrate calendar**. Copy its **Secret address in iCal format** into Floatlet's **Preferences > Google Calendar** dialog. Treat that address as a password; never include it in issues or screenshots.
 
 Windows DPAPI encrypts the link locally for your user. Events are fetched over HTTPS on demand and cached in memory for 15 minutes. Double-click a day to open its agenda; Refresh requests an update. Disconnect removes the stored link. No events are uploaded, created or edited.
 

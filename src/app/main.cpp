@@ -85,7 +85,7 @@ struct App {
         }
     }
     void error(const wchar_t* text){message=text;render();}
-    void tray(bool remove=false){if(review)return;NOTIFYICONDATAW n{sizeof(n)};n.hWnd=hwnd;n.uID=1;n.uFlags=NIF_MESSAGE|NIF_ICON|NIF_TIP;n.uCallbackMessage=Tray;n.hIcon=LoadIconW(GetModuleHandleW(nullptr),MAKEINTRESOURCEW(101));wcscpy_s(n.szTip,hotkey?L"Glide Island | Ctrl+Alt+Space":L"Glide Island | Click to open");Shell_NotifyIconW(remove?NIM_DELETE:NIM_ADD,&n);}
+    void tray(bool remove=false){if(review)return;NOTIFYICONDATAW n{sizeof(n)};n.hWnd=hwnd;n.uID=1;n.uFlags=NIF_MESSAGE|NIF_ICON|NIF_TIP;n.uCallbackMessage=Tray;n.hIcon=LoadIconW(GetModuleHandleW(nullptr),MAKEINTRESOURCEW(101));wcscpy_s(n.szTip,hotkey?L"Floatlet | Ctrl+Alt+Space":L"Floatlet | Click to open");Shell_NotifyIconW(remove?NIM_DELETE:NIM_ADD,&n);}
     void dirty(){SetTimer(hwnd,3,500,nullptr);}
     void focus(){if(interactive)return;previousFocus=GetForegroundWindow();interactive=true;SetWindowLongPtrW(hwnd,GWL_EXSTYLE,GetWindowLongPtrW(hwnd,GWL_EXSTYLE)&~WS_EX_NOACTIVATE);SetForegroundWindow(hwnd);SetFocus(hwnd);}
     void unfocus(){bool restore=interactive&&GetForegroundWindow()==hwnd;interactive=false;SetWindowLongPtrW(hwnd,GWL_EXSTYLE,GetWindowLongPtrW(hwnd,GWL_EXSTYLE)|WS_EX_NOACTIVATE);if(restore&&IsWindow(previousFocus))SetForegroundWindow(previousFocus);previousFocus=nullptr;}
@@ -147,7 +147,7 @@ struct App {
                 add(L"-",22,216,20);add(L"+",60,216,20);icon(Glyph::Chip,98,213,108);add(countdown.active()?(countdown.running?L"Pause":L"Resume"):L"Start",129,219,12);add(L"Reset",254,219,12,true);
             }
             else if(model.state==State::Preferences){
-                add(L"Make it yours",20,48,18);add(L"Glide Island",20,74,11,true);
+                add(L"Make it yours",20,48,18);add(L"Floatlet",20,74,11,true);
                 const wchar_t* labels[]={L"Icon-only music bar",L"Follow your pointer",L"Larger touch targets",L"Reduce motion",L"Microphone controls"};bool values[]={settings.iconOnly,settings.followPointer,settings.touch,settings.reduceMotion,settings.callControls};
                 for(int i=0;i<5;++i){marks.push_back({Glyph::Card,12,99+i*33.f,332,false,false,30});add(labels[i],24,105+i*33.f,12);icon(Glyph::Toggle,294,104+i*33.f,34,values[i]);}
                 add(agenda.connected?L"Google Calendar connected":L"Connect Google Calendar",24,278,12);add(L">",318,277,14);add(L"Start with Windows",24,308,12);add(L">",318,307,14);add(hotkey?L"Ctrl+Alt+Space to open. F10 for all actions.":L"Shortcut in use. Click the island to open.",24,335,10,true);
@@ -210,7 +210,7 @@ struct App {
     float localX(int x) const{return x*96.f/dpi-(geometry.bounds.w*96.f/dpi-size.w)/2;}
     void sliderTo(int x,bool commit){sliderValue=std::clamp((localX(x)-68)/248.f,0.f,1.f);if(slider==1&&audio)audio->set(sliderValue);if(slider==2&&system&&(commit||GetTickCount64()-lastBrightnessWrite>=80)){pendingBrightness=int(std::lround(sliderValue*100));lastBrightnessWrite=GetTickCount64();system->setBrightness(pendingBrightness);}render();}
     void dateToday(){SYSTEMTIME d;GetLocalTime(&d);calendar.year=d.wYear;calendar.month=d.wMonth;calendar.selected=d.wDay;}
-    void timerTick(){auto now=GetTickCount64();if(countdown.tick(now)){timerAlertUntil=now+10000;NOTIFYICONDATAW n{sizeof(n)};n.hWnd=hwnd;n.uID=1;n.uFlags=NIF_INFO;n.dwInfoFlags=NIIF_INFO|NIIF_RESPECT_QUIET_TIME;wcscpy_s(n.szInfoTitle,L"Glide Island timer");wcscpy_s(n.szInfo,L"Your timer is complete.");Shell_NotifyIconW(NIM_MODIFY,&n);MessageBeep(MB_OK);layout();}if(countdown.finished&&now>=timerAlertUntil){countdown.cancel();layout();}if(!countdown.running&&!countdown.finished)KillTimer(hwnd,8);if(model.state==State::Timer||model.state==State::Collapsed||model.state==State::Peek)render();}
+    void timerTick(){auto now=GetTickCount64();if(countdown.tick(now)){timerAlertUntil=now+10000;NOTIFYICONDATAW n{sizeof(n)};n.hWnd=hwnd;n.uID=1;n.uFlags=NIF_INFO;n.dwInfoFlags=NIIF_INFO|NIIF_RESPECT_QUIET_TIME;wcscpy_s(n.szInfoTitle,L"Floatlet timer");wcscpy_s(n.szInfo,L"Your timer is complete.");Shell_NotifyIconW(NIM_MODIFY,&n);MessageBeep(MB_OK);layout();}if(countdown.finished&&now>=timerAlertUntil){countdown.cancel();layout();}if(!countdown.running&&!countdown.finished)KillTimer(hwnd,8);if(model.state==State::Timer||model.state==State::Collapsed||model.state==State::Peek)render();}
     void launchSettings(const wchar_t* uri){auto result=reinterpret_cast<INT_PTR>(ShellExecuteW(hwnd,L"open",uri,nullptr,nullptr,SW_SHOWNORMAL));if(result<=32){message=L"Windows could not open this setting";render();}}
     void command(int id){message.clear();if(id>=RevealBase&&id<RevealBase+100){auto index=id-RevealBase;if(index<int(settings.paths.size())){PIDLIST_ABSOLUTE pidl=nullptr;if(SUCCEEDED(SHParseDisplayName(settings.paths[index].c_str(),nullptr,&pidl,0,nullptr))){SHOpenFolderAndSelectItems(pidl,0,nullptr,0);CoTaskMemFree(pidl);}else error(L"Original unavailable. Reference kept.");}return;}
         if(id>=RemoveBase&&id<RemoveBase+100){auto index=id-RemoveBase;if(index<int(settings.paths.size())){settings.paths.erase(settings.paths.begin()+index);shelfOffset=std::clamp(shelfOffset,0,std::max(0,int(settings.paths.size())-3));dirty();render();}return;}
@@ -231,7 +231,7 @@ struct App {
         case CalendarPanel:focus();dateToday();model.panel(State::Calendar);feed->request(calendar.year,calendar.month,calendar.selected);layout();break;
         case AgendaPanel:agendaOffset=0;model.panel(State::Agenda);feed->request(calendar.year,calendar.month,calendar.selected);layout();break;
         case CalendarRefresh:feed->request(calendar.year,calendar.month,calendar.selected,true);break;
-        case CalendarConnect:focus();if(auto link=SubscriptionDialog::show(hwnd)){try{feed->connect(*link);agenda=feed->get();feed->request(calendar.year,calendar.month,calendar.selected);render();}catch(...){MessageBoxW(hwnd,L"The calendar subscription could not be saved.",L"Glide Island",MB_OK);}}break;
+        case CalendarConnect:focus();if(auto link=SubscriptionDialog::show(hwnd)){try{feed->connect(*link);agenda=feed->get();feed->request(calendar.year,calendar.month,calendar.selected);render();}catch(...){MessageBoxW(hwnd,L"The calendar subscription could not be saved.",L"Floatlet",MB_OK);}}break;
         case PreviousMonth:calendar.move(-1);feed->request(calendar.year,calendar.month,calendar.selected);render();break;case NextMonth:calendar.move(1);feed->request(calendar.year,calendar.month,calendar.selected);render();break;case Today:dateToday();feed->request(calendar.year,calendar.month,calendar.selected);render();break;case NextYear:calendar.move(12);feed->request(calendar.year,calendar.month,calendar.selected);render();break;
         case ScreenshotsPanel:case WifiPanel:focus();listOffset=0;model.panel(id==ScreenshotsPanel?State::Screenshots:State::Wifi);system->refresh(id==ScreenshotsPanel?2:1);if(id==WifiPanel)SetTimer(hwnd,9,2500,nullptr);layout();break;
         case IconOnly:settings.iconOnly=!settings.iconOnly;dirty();layout();break;
@@ -327,7 +327,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR args,int){
         if(review){app.settings.alignment=0;app.settings.followPointer=false;}
         app.writer=std::make_unique<Writer>(file);
         WNDCLASSW cls{};cls.hInstance=instance;cls.style=CS_DBLCLKS;cls.lpszClassName=review?L"DelightIsland.Review":L"DelightIsland.Window";cls.lpfnWndProc=proc;cls.hIcon=LoadIconW(instance,MAKEINTRESOURCEW(101));cls.hCursor=LoadCursorW(nullptr,IDC_ARROW);RegisterClassW(&cls);
-        auto hwnd=CreateWindowExW(WS_EX_TOPMOST|(review?WS_EX_APPWINDOW:WS_EX_TOOLWINDOW)|WS_EX_NOACTIVATE|WS_EX_NOREDIRECTIONBITMAP,cls.lpszClassName,review?L"Glide Island review":L"Glide Island",WS_POPUP,0,0,224,36,nullptr,nullptr,instance,&app);if(!hwnd)winrt::throw_last_error();
+        auto hwnd=CreateWindowExW(WS_EX_TOPMOST|(review?WS_EX_APPWINDOW:WS_EX_TOOLWINDOW)|WS_EX_NOACTIVATE|WS_EX_NOREDIRECTIONBITMAP,cls.lpszClassName,review?L"Floatlet review":L"Floatlet",WS_POPUP,0,0,224,36,nullptr,nullptr,instance,&app);if(!hwnd)winrt::throw_last_error();
         app.geometry.hwnd=hwnd;app.renderer=std::make_unique<Renderer>();app.renderer->initialize(hwnd);
         app.feed=std::make_unique<CalendarFeed>(hwnd,review?file.parent_path()/L"review":file.parent_path());app.agenda=app.feed->get();app.dateToday();
         app.microphone=std::make_unique<MicrophoneMonitor>(hwnd,app.settings.callControls);
@@ -341,6 +341,6 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR args,int){
         app.callbackWindow->store(hwnd);auto destination=app.callbackWindow;
         app.networkToken=winrt::Windows::Networking::Connectivity::NetworkInformation::NetworkStatusChanged([destination](auto&&){if(auto window=destination->load())PostMessageW(window,WM_APP+2,0,0);});
         captureNotifyWindow=hwnd;app.foregroundHook=SetWinEventHook(EVENT_SYSTEM_FOREGROUND,EVENT_SYSTEM_FOREGROUND,nullptr,foregroundChanged,0,0,WINEVENT_OUTOFCONTEXT);app.tray();app.layout();if(review){app.settings.followPointer=false;app.command(Controls);app.model.pinned=true;}MSG msg;while(GetMessageW(&msg,nullptr,0,0)>0){TranslateMessage(&msg);DispatchMessageW(&msg);}app.renderer.reset();app.media.reset();
-    }catch(const winrt::hresult_error& e){MessageBoxW(nullptr,e.message().c_str(),L"Glide Island could not start",MB_OK|MB_ICONERROR);result=3;}catch(...){MessageBoxW(nullptr,L"An unexpected startup error occurred.",L"Glide Island",MB_OK|MB_ICONERROR);result=4;}
+    }catch(const winrt::hresult_error& e){MessageBoxW(nullptr,e.message().c_str(),L"Floatlet could not start",MB_OK|MB_ICONERROR);result=3;}catch(...){MessageBoxW(nullptr,L"An unexpected startup error occurred.",L"Floatlet",MB_OK|MB_ICONERROR);result=4;}
     OleUninitialize();CloseHandle(single);return result;
 }

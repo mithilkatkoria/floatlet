@@ -26,8 +26,8 @@ for n,frame in frames:
 (root/'src/app/resources.rc').write_text('''#include <windows.h>
 101 ICON "island.ico"
 1 VERSIONINFO
-FILEVERSION 0,3,0,0
-PRODUCTVERSION 0,3,0,0
+FILEVERSION 0,4,0,0
+PRODUCTVERSION 0,4,0,0
 FILEOS VOS_NT_WINDOWS32
 FILETYPE VFT_APP
 BEGIN
@@ -35,11 +35,11 @@ BEGIN
  BEGIN
   BLOCK "040904b0"
   BEGIN
-   VALUE "FileDescription", "Glide Island\\0"
-   VALUE "ProductName", "Glide Island\\0"
-   VALUE "FileVersion", "0.3.0\\0"
-   VALUE "ProductVersion", "0.3.0\\0"
-   VALUE "OriginalFilename", "GlideIsland.exe\\0"
+   VALUE "FileDescription", "Floatlet\\0"
+   VALUE "ProductName", "Floatlet\\0"
+   VALUE "FileVersion", "0.4.0\\0"
+   VALUE "ProductVersion", "0.4.0\\0"
+   VALUE "OriginalFilename", "Floatlet.exe\\0"
   END
  END
  BLOCK "VarFileInfo"
