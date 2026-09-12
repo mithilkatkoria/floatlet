@@ -179,7 +179,7 @@ struct App {
                 bool matches=agenda.year==calendar.year&&agenda.month==calendar.month&&agenda.day==calendar.selected;
                 auto time=[](int minute){minute=std::clamp(minute,0,1440);return (minute/60<10?L"0":L"")+std::to_wstring(minute/60)+L":"+(minute%60<10?L"0":L"")+std::to_wstring(minute%60);};
                 if(matches){for(int row=0;row<4&&agendaOffset+row<int(agenda.agenda.entries.size());++row){auto& entry=agenda.agenda.entries[agendaOffset+row];marks.push_back({Glyph::Card,12,111+row*43.f,320,false,false,39});add(std::wstring(winrt::to_hstring(entry.title)),23,115+row*43.f,12,false,294);auto label=entry.allDay?std::wstring(L"All day"):time(entry.minute)+L" - "+time(entry.endMinute);if(!entry.location.empty())label+=L"  "+std::wstring(winrt::to_hstring(entry.location));add(label,23,131+row*43.f,10,true,294);}
-                    if(agenda.agenda.entries.empty())add(!agenda.connected?L"Connect a calendar in Preferences":agenda.status.starts_with(L"Could")?L"Calendar unavailable":L"No events for this day",23,121,13,true,296);
+                    if(agenda.agenda.entries.empty())add(!agenda.connected?L"Connect a calendar in Preferences":!agenda.available?L"Calendar unavailable. Check its link.":L"No events for this day",23,121,13,true,296);
                 }else add(agenda.connected?L"Loading your day...":L"Connect a calendar in Preferences",23,121,13,true,296);
                 add(agenda.status,20,294,10,true,305);
             }

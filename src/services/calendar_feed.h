@@ -10,8 +10,9 @@
 #include <mutex>
 #include <condition_variable>
 namespace delight {
-struct AgendaSnapshot {ical::Agenda agenda;std::vector<ical::Entry> upcoming;std::wstring status=L"Connect a calendar in Preferences";int year=0;unsigned month=0,day=0;bool connected=false;};
+struct AgendaSnapshot {ical::Agenda agenda;std::vector<ical::Entry> upcoming;std::wstring status=L"Connect a calendar in Preferences";int year=0;unsigned month=0,day=0;bool connected=false;bool available=false;};
 class CalendarFeed {
+    struct FeedError:std::runtime_error {DWORD status;explicit FeedError(DWORD code):std::runtime_error("Calendar HTTP error"),status(code){}};
     struct Internet {HINTERNET value=nullptr;explicit Internet(HINTERNET h):value(h){if(!h)winrt::throw_last_error();}~Internet(){WinHttpCloseHandle(value);}operator HINTERNET()const{return value;}};
     HWND hwnd;std::filesystem::path file;std::mutex mutex;std::condition_variable cv;bool done=false,pending=false,force=false;
     std::wstring url;unsigned generation=0;std::chrono::year_month_day selected{std::chrono::year{2026}/1/1};AgendaSnapshot snapshot;std::thread worker;
@@ -21,7 +22,7 @@ class CalendarFeed {
         Internet session(WinHttpOpen(L"Floatlet/0.6",WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,WINHTTP_NO_PROXY_NAME,WINHTTP_NO_PROXY_BYPASS,0));WinHttpSetTimeouts(session,5000,5000,5000,5000);
         Internet connection(WinHttpConnect(session,L"calendar.google.com",INTERNET_DEFAULT_HTTPS_PORT,0));
         Internet request(WinHttpOpenRequest(connection,L"GET",path.c_str(),nullptr,WINHTTP_NO_REFERER,WINHTTP_DEFAULT_ACCEPT_TYPES,WINHTTP_FLAG_SECURE));DWORD disabled=WINHTTP_DISABLE_REDIRECTS|WINHTTP_DISABLE_COOKIES;WinHttpSetOption(request,WINHTTP_OPTION_DISABLE_FEATURE,&disabled,sizeof(disabled));
-        if(!WinHttpSendRequest(request,WINHTTP_NO_ADDITIONAL_HEADERS,0,WINHTTP_NO_REQUEST_DATA,0,0,0)||!WinHttpReceiveResponse(request,nullptr))winrt::throw_last_error();DWORD status=0,bytes=sizeof(status);if(!WinHttpQueryHeaders(request,WINHTTP_QUERY_STATUS_CODE|WINHTTP_QUERY_FLAG_NUMBER,WINHTTP_HEADER_NAME_BY_INDEX,&status,&bytes,WINHTTP_NO_HEADER_INDEX)||status!=200)throw std::runtime_error("Calendar server rejected request");
+        if(!WinHttpSendRequest(request,WINHTTP_NO_ADDITIONAL_HEADERS,0,WINHTTP_NO_REQUEST_DATA,0,0,0)||!WinHttpReceiveResponse(request,nullptr))winrt::throw_last_error();DWORD status=0,bytes=sizeof(status);if(!WinHttpQueryHeaders(request,WINHTTP_QUERY_STATUS_CODE|WINHTTP_QUERY_FLAG_NUMBER,WINHTTP_HEADER_NAME_BY_INDEX,&status,&bytes,WINHTTP_NO_HEADER_INDEX)||status!=200)throw FeedError(status);
         std::string body;char buffer[8192];DWORD count=0;for(;;){if(!WinHttpReadData(request,buffer,sizeof(buffer),&count))winrt::throw_last_error();if(!count)break;if(body.size()+count>2*1024*1024)throw std::runtime_error("Calendar exceeds 2 MiB");body.append(buffer,count);}if(!MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,body.data(),int(body.size()),nullptr,0))throw std::runtime_error("Calendar is not valid UTF-8");return body;
     }
     void store(const std::wstring& value){
@@ -38,19 +39,21 @@ class CalendarFeed {
             auto links=parseLinks(request);
             std::erase_if(caches,[&](auto& item){return std::find(links.begin(),links.end(),item.first)==links.end();});
             AgendaSnapshot next;next.year=int(date.year());next.month=unsigned(date.month());next.day=unsigned(date.day());next.connected=!links.empty();
-            unsigned fresh=0,failed=0;
+            unsigned fresh=0,failed=0;bool invalidLink=false;
             auto today=std::chrono::floor<std::chrono::days>(std::chrono::current_zone()->to_local(std::chrono::system_clock::now()));
             for(auto& link:links){
                 {std::scoped_lock lock(mutex);if(done)return;if(version!=generation)break;}
                 auto& cache=caches[link];bool online=true;
                 try{if(reload||!cache.fetched||GetTickCount64()-cache.fetched>=55*1000){cache.calendar=ical::parse(download(link));cache.fetched=GetTickCount64();}++fresh;}
+                catch(const FeedError& e){online=false;++failed;invalidLink|=e.status==404||e.status==401||e.status==403;}
                 catch(...){online=false;++failed;}
-                if(!cache.fetched)continue;
+                if(!cache.fetched)continue;next.available=true;
                 try{auto day=ical::day(cache.calendar,date);next.agenda.unsupported+=day.unsupported;mergeEntries(next.agenda.entries,day.entries);
                     if(online)for(int d=0;d<2;++d){auto events=ical::day(cache.calendar,std::chrono::year_month_day{today+std::chrono::days{d}});std::erase_if(events.entries,[](auto& e){return e.allDay;});mergeEntries(next.upcoming,events.entries);}
                 }catch(...){++next.agenda.unsupported;}
             }
             if(!links.empty())next.status=failed?(fresh?L"Some calendars offline. Available calendars synced.":L"Offline. Showing last loaded events."):(std::to_wstring(links.size())+L" calendar(s) synced. Checks every minute.");
+            if(invalidLink)next.status=fresh?L"A calendar link was rejected. Reconnect it in Preferences.":L"Calendar link rejected. Use its Secret iCal address.";
             if(!failed&&next.agenda.unsupported)next.status=L"Synced. Some calendar rules are unsupported.";
             {std::scoped_lock lock(mutex);if(done)return;if(version!=generation)continue;snapshot=std::move(next);}PostMessageW(hwnd,WM_APP+13,0,0);
         }

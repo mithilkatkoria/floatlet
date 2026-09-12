@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.2 - Calendar connection errors
+
+- Show rejected calendar links explicitly instead of displaying an empty day as though sync succeeded.
+- Distinguish unavailable feeds from successfully loaded calendars with no events.
+- Clarify that private Google calendars require the Secret iCal address.
+
 ## 0.6.1 - App icons and multiple calendars
 
 - Use the Windows app logo when a media session supplies no artwork, with a music-note fallback instead of the Floatlet capsule logo.
