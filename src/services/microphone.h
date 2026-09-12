@@ -56,6 +56,11 @@ class MicrophoneMonitor {
         signal->stop();clear();if(enumerator)enumerator->UnregisterEndpointNotificationCallback(signal);signal->Release();
     }
 public:
+    static bool openApp(const std::wstring& name){
+        struct Search {const std::wstring* name;HWND result=nullptr;};Search search{&name};
+        EnumWindows([](HWND window,LPARAM value)->BOOL{auto& search=*reinterpret_cast<Search*>(value);if(!IsWindowVisible(window)||GetWindow(window,GW_OWNER))return TRUE;DWORD pid=0;GetWindowThreadProcessId(window,&pid);if(appName(pid)!=*search.name)return TRUE;search.result=window;return FALSE;},reinterpret_cast<LPARAM>(&search));
+        if(!search.result)return false;if(IsIconic(search.result))ShowWindowAsync(search.result,SW_RESTORE);return SetForegroundWindow(search.result)!=FALSE;
+    }
     MicrophoneMonitor(HWND h,bool on):hwnd(h),enabled(on){if(!wake)winrt::throw_last_error();worker=std::thread([this]{run();});}
     ~MicrophoneMonitor(){stopping=true;SetEvent(wake);worker.join();CloseHandle(wake);}
     void enable(bool on){enabled=on;SetEvent(wake);}

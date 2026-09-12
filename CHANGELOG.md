@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.3 - Clearer call controls
+
+- Replace the duplicate microphone glyph with a headset symbol and keep one mute control.
+- Rename the saved preference to Show calls. Turning it off immediately hides microphone activity and disables monitoring.
+- Add Open call app for native participant, disconnect and deafen controls. Direct Discord participant names, disconnect and deafen remain unavailable without an approved integration.
+
 ## 0.6.2 - Calendar connection errors
 
 - Show rejected calendar links explicitly instead of displaying an empty day as though sync succeeded.

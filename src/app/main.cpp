@@ -38,7 +38,7 @@ namespace {
 constexpr UINT Tray=WM_APP+1;
 HWND captureNotifyWindow=nullptr;
 void CALLBACK foregroundChanged(HWINEVENTHOOK,DWORD,HWND window,LONG,LONG,DWORD,DWORD){if(captureNotifyWindow)PostMessageW(captureNotifyWindow,WM_APP+8,0,reinterpret_cast<LPARAM>(window));}
-enum Command { Show=1,Hide,Quit,Music,Files,Controls,Pin,Add,Touch,Left,Center,Right,OtherMonitor,SettingsHelp,Play,Previous,Next,VolDown,VolUp,Mute,Wifi,Bluetooth,Display,Sound,Power,FollowPointer,IconOnly,TimerPanel,PreferencesPanel,TimerStart,TimerPause,TimerCancel,TimerLess,TimerMore,Timer1,Timer5,Timer10,Timer25,ReduceMotion,CallControls,CallPanel,MicrophoneMute,CalendarConnect,AgendaPanel,CalendarRefresh,StartupSettings,CalendarPanel,ScreenshotsPanel,NightLight,Mirror,WifiSettings,WifiPanel,PreviousMonth,NextMonth,Today,NextYear,DismissAlert,RemoveBase=1000,RevealBase=2000 };
+enum Command { Show=1,Hide,Quit,Music,Files,Controls,Pin,Add,Touch,Left,Center,Right,OtherMonitor,SettingsHelp,Play,Previous,Next,VolDown,VolUp,Mute,Wifi,Bluetooth,Display,Sound,Power,FollowPointer,IconOnly,TimerPanel,PreferencesPanel,TimerStart,TimerPause,TimerCancel,TimerLess,TimerMore,Timer1,Timer5,Timer10,Timer25,ReduceMotion,CallControls,CallPanel,MicrophoneMute,CalendarConnect,AgendaPanel,CalendarRefresh,StartupSettings,CalendarPanel,ScreenshotsPanel,NightLight,Mirror,WifiSettings,WifiPanel,PreviousMonth,NextMonth,Today,NextYear,DismissAlert,OpenCallApp,RemoveBase=1000,RevealBase=2000 };
 struct Writer {
     std::mutex mutex;std::condition_variable cv;std::optional<Settings> pending;bool finish=false;std::atomic_bool failed=false;
     std::filesystem::path file;
@@ -119,7 +119,7 @@ struct App {
         auto icon=[&](Glyph g,float x,float y,float s,bool active=false,bool disabled=false){marks.push_back({g,x,y,s,active,disabled});};
         auto m=media?media->get():MediaSnapshot{};
         if(model.state==State::Peek&&!notice.empty()){marks.push_back({noticeGlyph,18,19,28,true,false,28,noticeGlyph==Glyph::AlarmBell&&!settings.reduceMotion?sinf(GetTickCount64()*.035f)*9.f:0.f});add(notice,61,14,15,false,220);add(noticeDetail,61,37,10,true,220);}
-        else if((model.state==State::Collapsed||model.state==State::Peek)&&mic.active&&settings.callControls){icon(Glyph::Microphone,12,(size.h-24)/2,24,mic.muted);add(mic.app,48,(size.h-20)/2,13,false,size.w-94);icon(Glyph::Microphone,size.w-33,(size.h-18)/2,18,mic.muted);}
+        else if((model.state==State::Collapsed||model.state==State::Peek)&&mic.active&&settings.callControls){icon(Glyph::Headphones,12,(size.h-24)/2,24);add(mic.app,48,(size.h-20)/2,13,false,size.w-94);icon(Glyph::Microphone,size.w-33,(size.h-18)/2,18,mic.muted);}
         else if((model.state==State::Collapsed||model.state==State::Peek)&&alarm.ringing){marks.push_back({Glyph::AlarmBell,12,(size.h-24)/2,24,true,false,24,!settings.reduceMotion&&GetTickCount64()%4000<800?sinf(GetTickCount64()*.035f)*9.f:0.f});add(L"Alarm",48,(size.h-21)/2,15);icon(Glyph::Close,size.w-32,(size.h-16)/2,16);}
         else if((model.state==State::Collapsed||model.state==State::Peek)&&(countdown.active()||countdown.finished)){
             marks.push_back({countdown.finished?Glyph::AlarmBell:Glyph::Timer,12,(size.h-24)/2,24,true,false,24,countdown.finished?(!settings.reduceMotion&&GetTickCount64()%4000<800?sinf(GetTickCount64()*.035f)*9.f:0.f):countdown.fraction(GetTickCount64())});add(countdown.finished?L"Timer complete":countdown.text(GetTickCount64()),48,(size.h-21)/2,15,false,143);icon(countdown.finished?Glyph::Close:countdown.running?Glyph::Pause:Glyph::Play,size.w-32,(size.h-14)/2,14);
@@ -145,8 +145,8 @@ struct App {
                 add(std::to_wstring(settings.paths.size())+L" files",18,168,11,true);add(L"Screenshots",94,168,11,true,100);icon(Glyph::Plus,219,166,17);add(L"Add files",242,168,11);icon(Glyph::More,321,166,18);
             }else if(model.state==State::DragOver){icon(Glyph::Folder,160,55,32);add(L"Add to your tray",126,103,15);add(L"Release to keep a reference",111,133,11,true);}
             else if(model.state==State::Call){
-                icon(Glyph::Microphone,22,56,32,mic.muted);add(mic.active?mic.app:L"No supported microphone session",70,53,16,false,250);add(mic.active?(mic.muted?L"Microphone muted":L"Microphone active"):L"Voice activity appears automatically",70,79,11,true,250);
-                icon(Glyph::Chip,22,114,120);add(mic.muted?L"Unmute microphone":L"Mute microphone",31,120,11,!mic.active,115);add(L"Applies to this microphone in all apps.",22,155,10,true,299);
+                icon(Glyph::Headphones,22,56,32);add(mic.active?mic.app:L"No supported microphone session",70,53,16,false,250);add(mic.active?(mic.muted?L"Microphone muted":L"Microphone active"):L"Voice activity appears automatically",70,79,11,true,250);
+                icon(Glyph::Chip,22,114,120);add(mic.muted?L"Unmute microphone":L"Mute microphone",31,120,11,!mic.active,115);icon(Glyph::Chip,174,114,158);add(L"Open call app",186,120,11,!mic.active,140);add(L"Mute applies to this microphone in all apps.",22,155,10,true,310);add(L"Names, deafen and hang-up are in the call app.",22,173,10,true,310);
             }
             else if(model.state==State::Timer && (alarm.ringing||countdown.finished)){
                 marks.push_back({Glyph::AlarmBell,142,79,60,true,false,60,!settings.reduceMotion&&GetTickCount64()%4000<800?sinf(GetTickCount64()*.035f)*9.f:0.f});add(alarm.ringing&&countdown.finished?L"Alarm and timer":alarm.ringing?L"Alarm ringing":L"Time is up",16,159,24,false,312,true);add(L"Stays active until you dismiss it.",16,202,11,true,312,true);marks.push_back({Glyph::Card,88,248,168,true,false,42});add(L"Dismiss",88,260,14,false,168,true);
@@ -169,7 +169,7 @@ struct App {
             }
             else if(model.state==State::Preferences){
                 add(L"Make it yours",20,48,18);add(L"Floatlet",20,74,11,true);
-                const wchar_t* labels[]={L"Icon-only music bar",L"Follow your pointer",L"Larger touch targets",L"Reduce motion",L"Microphone controls"};bool values[]={settings.iconOnly,settings.followPointer,settings.touch,settings.reduceMotion,settings.callControls};
+                const wchar_t* labels[]={L"Icon-only music bar",L"Follow your pointer",L"Larger touch targets",L"Reduce motion",L"Show calls"};bool values[]={settings.iconOnly,settings.followPointer,settings.touch,settings.reduceMotion,settings.callControls};
                 for(int i=0;i<5;++i){marks.push_back({Glyph::Card,12,99+i*33.f,332,false,false,30});add(labels[i],24,105+i*33.f,12);icon(Glyph::Toggle,294,104+i*33.f,34,values[i]);}
                 add(agenda.connected?L"Google Calendar connected":L"Connect Google Calendar",24,278,12);add(L">",318,277,14);add(L"Start with Windows",24,308,12);add(L">",318,307,14);add(hotkey?L"Ctrl+Shift+F12 to open. F10 for all actions.":L"Shortcut in use. Click the island to open.",24,331,9,true);lines.push_back({L"made by draey.dev",20,354,11,true,316,true,true});
             }
@@ -248,9 +248,10 @@ struct App {
         case TimerPause:timerTick();if(countdown.finished)break;if(countdown.running)countdown.pause(GetTickCount64());else countdown.resume(GetTickCount64());syncTimeTick();render();break;
         case DismissAlert:dismissTimeAlert();layout();break;case TimerCancel:if(alarm.ringing||countdown.finished)break;countdown.cancel();syncTimeTick();layout();break;
         case ReduceMotion:settings.reduceMotion=!settings.reduceMotion;dirty();layout();break;
-        case CallControls:settings.callControls=!settings.callControls;microphone->enable(settings.callControls);dirty();render();break;
+        case CallControls:settings.callControls=!settings.callControls;microphone->enable(settings.callControls);if(!settings.callControls)mic={};dirty();layout();break;
         case CallPanel:focus();model.panel(State::Call);layout();break;
-        case MicrophoneMute:if(mic.active)microphone->mute();break;
+        case MicrophoneMute:if(settings.callControls&&mic.active)microphone->mute();break;
+        case OpenCallApp:if(mic.active&&!MicrophoneMonitor::openApp(mic.app))popNotice(L"Open "+mic.app+L" from the taskbar",2400,false,Glyph::Headphones);break;
         case StartupSettings:launchSettings(L"ms-settings:startupapps");break;
         case Show:event(Event::Show);break;case Hide:unfocus();event(Event::Hide);break;case Quit:DestroyWindow(hwnd);break;
         case CalendarPanel:focus();dateToday();model.panel(State::Calendar);feed->request(calendar.year,calendar.month,calendar.selected);layout();break;
@@ -283,7 +284,7 @@ struct App {
         POINT p;GetCursorPos(&p);menuOpen=true;int id=TrackPopupMenu(menu,TPM_RETURNCMD|TPM_NONOTIFY|TPM_RIGHTBUTTON,p.x,p.y,0,hwnd,nullptr);menuOpen=false;DestroyMenu(menu);if(id)command(id);if(!tracking&&!model.pinned)SetTimer(hwnd,2,220,nullptr);
     }
     void click(float x,float y){if(!notice.empty()){notice.clear();KillTimer(hwnd,11);if(alarm.ringing||countdown.finished){timeMode=alarm.ringing?TimeMode::Alarm:TimeMode::Timer;command(TimerPanel);}else {model.state=State::Collapsed;layout();}return;}x-=(geometry.bounds.w*96.f/dpi-size.w)/2;if((model.state==State::Collapsed||model.state==State::Peek)&&(alarm.ringing||countdown.finished)){timeMode=alarm.ringing?TimeMode::Alarm:TimeMode::Timer;command(TimerPanel);return;}if((model.state==State::Collapsed||model.state==State::Peek)&&mic.active&&settings.callControls){command(x>size.w-45?MicrophoneMute:CallPanel);return;}if((model.state==State::Collapsed||model.state==State::Peek)&&(alarm.ringing||countdown.finished)){timeMode=alarm.ringing?TimeMode::Alarm:TimeMode::Timer;command(TimerPanel);return;}if((model.state==State::Collapsed||model.state==State::Peek)&&(countdown.active()||countdown.finished)){if(x>size.w-45&&countdown.active())command(TimerPause);else command(TimerPanel);return;}if((model.state==State::Collapsed||model.state==State::Peek)&&stopwatch.running){if(x>size.w-45){stopwatch.toggle(GetTickCount64());layout();}else{timeMode=TimeMode::Stopwatch;command(TimerPanel);}return;}if(model.state==State::Peek&&airpodsNotice.empty()&&media->get().play){int hit=hoverTransport(x,y);if(hit>=0){auto m=media->get();if(hit==0&&m.previous)command(Previous);else if(hit==1&&m.play)command(Play);else if(hit==2&&m.next)command(Next);return;}}if(model.state==State::Collapsed||model.state==State::Peek){focus();event(Event::Open);return;}if(y<40){if(x>size.w-43)command(Pin);else if(x>size.w-73)command(PreferencesPanel);else if(x<266)command(x<74?Music:x<138?Files:x<202?Controls:TimerPanel);return;}
-        if(model.state==State::Call){if(y>=110&&y<146&&x<156)command(MicrophoneMute);return;}
+        if(model.state==State::Call){if(y>=110&&y<146){if(x>=22&&x<156)command(MicrophoneMute);else if(x>=174&&x<332)command(OpenCallApp);}return;}
         if(model.state==State::Timer){
             if(alarm.ringing||countdown.finished){if(y>=248&&y<290&&x>=88&&x<256)command(DismissAlert);return;}
             if(y>=45&&y<76){timeMode=TimeMode(std::clamp(int((x-16)/104),0,2));syncTimeTick();render();return;}
@@ -312,7 +313,7 @@ struct App {
             KillTimer(hwnd,2);if(!tracking){tracking=true;TRACKMOUSEEVENT t{sizeof(t),TME_LEAVE,hwnd,0};TrackMouseEvent(&t);SetTimer(hwnd,1,120,nullptr);}return 0;
         case WM_MOUSELEAVE:tracking=false;KillTimer(hwnd,1);SetTimer(hwnd,2,220,nullptr);return 0;
         case WM_LBUTTONDBLCLK:{float x=localX(GET_X_LPARAM(l)),y=GET_Y_LPARAM(l)*96.f/dpi;if(model.state==State::Calendar&&y>=108&&y<270&&x>=17&&x<325){auto day=calendar.dayAt(int((y-108)/27)*7+int((x-17)/44));if(day){calendar.selected=day;command(AgendaPanel);}}return 0;}
-        case WM_LBUTTONDOWN:{down={GET_X_LPARAM(l),GET_Y_LPARAM(l)};float x=localX(down.x),y=down.y*96.f/dpi;if((model.state==State::Collapsed||model.state==State::Peek)&&x>size.w-45&&(mic.active||countdown.active()))return 0;if(model.state==State::Peek&&airpodsNotice.empty()&&media->get().play&&hoverTransport(x,y)>=0)return 0;focus();
+        case WM_LBUTTONDOWN:{down={GET_X_LPARAM(l),GET_Y_LPARAM(l)};float x=localX(down.x),y=down.y*96.f/dpi;if((model.state==State::Collapsed||model.state==State::Peek)&&x>size.w-45&&((mic.active&&settings.callControls)||countdown.active()))return 0;if(model.state==State::Peek&&airpodsNotice.empty()&&media->get().play&&hoverTransport(x,y)>=0)return 0;focus();
             if(model.state==State::Controls&&x>=56&&x<=328){if(y>=251&&y<=286&&audio&&audio->available)slider=1;else if(y>=179&&y<=214&&controls.brightness>=0)slider=2;if(slider){SetCapture(hwnd);sliderTo(down.x,false);return 0;}}
             if(model.state==State::Shelf&&x<303&&y>=50&&y<140){int row=int((y-50)/30)+shelfOffset;if(row<int(settings.paths.size())){downItem=row;SetCapture(hwnd);}}return 0;}
         case WM_LBUTTONUP:if(slider){sliderTo(GET_X_LPARAM(l),true);slider=0;ReleaseCapture();return 0;}ReleaseCapture();if(downItem>=0){downItem=-1;return 0;}click(GET_X_LPARAM(l)*96.f/dpi,GET_Y_LPARAM(l)*96.f/dpi);return 0;
