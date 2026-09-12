@@ -50,7 +50,7 @@ inline bool matches(const Event& e,local_days candidate){
     if(!get("BYDAY").empty()){const char* names[]={"MO","TU","WE","TH","FR","SA","SU"};std::string name=names[weekday{candidate}.iso_encoding()-1];bool found=false;for(auto& token:split(get("BYDAY"),',')){if(token.size()<2||token.substr(token.size()-2)!=name)continue;if(token.size()==2){found=true;break;}int ordinal=number(std::string_view(token).substr(0,token.size()-2));if((ordinal>0&&(day-1)/7+1==ordinal)||(ordinal<0&&-int((monthEnd-day)/7+1)==ordinal)){found=true;break;}}if(!found)return false;}
     return true;
 }
-struct Entry {std::string title,location;int minute=0,endMinute=0;bool allDay=false;};
+struct Entry {std::string title,location;int minute=0,endMinute=0;bool allDay=false;std::string uid;sys_seconds start{};};
 struct Agenda {std::vector<Entry> entries;unsigned unsupported=0;};
 inline Agenda day(const Calendar& calendar,year_month_day selected){
     unsigned expansionSteps=0;Agenda out;out.unsupported=calendar.unsupported;auto zone=current_zone();local_days selectedDay{selected};auto begin=zone->to_sys(local_seconds{selectedDay},choose::earliest),end=zone->to_sys(local_seconds{selectedDay+days{1}},choose::earliest);
@@ -60,7 +60,7 @@ inline Agenda day(const Calendar& calendar,year_month_day selected){
         if(e.end&&(e.start.utc!=e.end->utc||e.start.zone!=e.end->zone))throw std::runtime_error("Mixed event timezones are unsupported");
         auto duration=e.end?e.end->local-e.start.local:e.start.allDay?seconds{86400}:seconds{1};if(duration<seconds{0}||duration>days{366})throw std::runtime_error("Unsupported event duration");
         auto emit=[&](Stamp start){auto at=absolute(start);Stamp finish=start;finish.local+=duration;auto until=absolute(finish);if(at>=end||until<=begin)return;if(!e.recurrence&&overrides.contains({e.uid,at}))return;for(auto& exclude:e.exclude)if(absolute(exclude)==at)return;
-            if(out.entries.size()>=100)return;auto local=zone->to_local(at),localEnd=zone->to_local(until);int minute=int(duration_cast<minutes>(local-local_seconds{selectedDay}).count()),endMinute=int(duration_cast<minutes>(localEnd-local_seconds{selectedDay}).count());out.entries.push_back({e.title.empty()?"Untitled event":e.title,e.location,minute,endMinute,start.allDay});};
+            if(out.entries.size()>=100)return;auto local=zone->to_local(at),localEnd=zone->to_local(until);int minute=int(duration_cast<minutes>(local-local_seconds{selectedDay}).count()),endMinute=int(duration_cast<minutes>(localEnd-local_seconds{selectedDay}).count());out.entries.push_back({e.title.empty()?"Untitled event":e.title,e.location,minute,endMinute,start.allDay,e.uid,at});};
         if(e.rule.empty()||e.recurrence)emit(e.start);
         else {auto base=floor<days>(e.start.local);auto offset=e.start.local-base;auto first=selectedDay-days{2}-ceil<days>(duration);auto expansionEnd=selectedDay+days{2};auto countIt=e.rule.find("COUNT");int remaining=countIt==e.rule.end()?0:number(countIt->second);if(countIt!=e.rule.end()&&(remaining<1||remaining>100000))throw std::runtime_error("Unsupported recurrence count");
             if(countIt!=e.rule.end()){if((expansionEnd-base).count()>36600)throw std::runtime_error("Recurrence exceeds expansion bound");first=base;}

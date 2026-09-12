@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.0 - Persistent alerts and calendar reminders
+
+- Icon-only music is slightly wider (84 DIP), with the same small waveform.
+- Alarm and timer alerts ring until Dismiss is pressed inside Clock. Opening the pill, leaving it or pressing Escape does not dismiss them. Alert icons shake briefly every few seconds and respect reduced motion.
+- Camera and calendar icons distinguish notifications. Alerts expand then return to a compact active state.
+- Google Calendar subscriptions refresh about once per minute. Upcoming timed events show a reminder within five minutes of their start, once per occurrence per app session. Google feed publication delays still apply; offline data does not trigger new reminders.
+- Guided calendar setup and Ctrl+Shift+F12 open shortcut to avoid the previous Flow Launcher conflict.
+- Main website download is now the standalone Floatlet.exe. The ZIP with installation scripts remains available.
+- Explicit installer option -EnableStartup enables Windows startup for upgrades while preserving app settings.
+
 ## 0.5.0 - Clocks and quiet motion
 
 - Running stopwatch stays visible in the compact island. Timer completion and alarms expand into a notification and play a dismissible chime.

@@ -1,12 +1,13 @@
 {
-  "version": "0.5.0",
+  "version": "0.6.0",
   "date": "2026-09-12",
   "architecture": "x64",
   "windows": "Windows 11",
-  "url": "https://github.com/mithilkatkoria/floatlet/releases/download/v0.5.0/Floatlet-0.5.0-x64.zip",
-  "size": 319158,
-  "sha256": "42b0339be4e76c1cda7698d6fbfb1c4382010b41c12625325a94c468552747b3",
+  "url": "https://github.com/mithilkatkoria/floatlet/releases/download/v0.6.0/Floatlet.exe",
+  "zipUrl": "https://github.com/mithilkatkoria/floatlet/releases/download/v0.6.0/Floatlet-0.6.0-x64.zip",
+  "size": 1026560,
+  "sha256": "05cf6fed3bb77cac02bf847257d73884b0606d0cb320a1cb4e3856ee27447477",
   "signing": "unsigned",
-  "notes": "https://github.com/mithilkatkoria/floatlet/releases/tag/v0.5.0",
+  "notes": "https://github.com/mithilkatkoria/floatlet/releases/tag/v0.6.0",
   "channel": "preview"
 }

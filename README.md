@@ -33,7 +33,7 @@ Extract the release ZIP. Run `Floatlet.exe` for portable use, or install for you
 
 New installations start with Windows by default; use `-NoStartup` to opt out. Upgrades preserve startup preferences and existing data. Releases are unsigned previews. The x64 executable runs on Intel/AMD Windows and through emulation on Windows on ARM. A native ARM64 release is not supplied yet.
 
-The gear opens preferences. Ctrl+Alt+Space opens with keyboard focus, Escape collapses, and Ctrl+Alt+H hides or shows. Right-click opens additional actions. Exit before running the installed `uninstall.ps1`; uninstall retains settings.
+The gear opens preferences. Ctrl+Shift+F12 opens with keyboard focus, Escape collapses, and Ctrl+Alt+H hides or shows. Right-click opens additional actions. Exit before running the installed `uninstall.ps1`; uninstall retains settings.
 
 ## Calendar subscription
 

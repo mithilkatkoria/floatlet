@@ -1,4 +1,4 @@
-param([string]$Source=$PSScriptRoot,[switch]$NoStartup,[switch]$AcceptDefaults,[switch]$Launch)
+param([string]$Source=$PSScriptRoot,[switch]$NoStartup,[switch]$EnableStartup,[switch]$AcceptDefaults,[switch]$Launch)
 $ErrorActionPreference='Stop'
 $sourceExe=Join-Path $Source 'Floatlet.exe'
 if (!(Test-Path -LiteralPath $sourceExe)) { throw 'Supply a package directory containing Floatlet.exe.' }
@@ -28,7 +28,7 @@ for ($attempt=0; $attempt -lt 12; $attempt++) {
     }
 }
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'uninstall.ps1') -Destination $install -Force
-Set-Content -LiteralPath (Join-Path $install 'installed.marker') -Value 'Floatlet 0.5.0'
+Set-Content -LiteralPath (Join-Path $install 'installed.marker') -Value 'Floatlet 0.6.0'
 $shell=New-Object -ComObject WScript.Shell
 $shortcut=$shell.CreateShortcut((Join-Path ([Environment]::GetFolderPath('Programs')) 'Floatlet.lnk'))
 $shortcut.TargetPath=$target
@@ -41,6 +41,18 @@ foreach ($oldName in @('Delight Island.lnk','Delay Island.lnk','Luma Island.lnk'
     if ((Test-Path -LiteralPath $oldLink) -and $shell.CreateShortcut($oldLink).TargetPath -in (@($target)+$oldTargets)) { Remove-Item -LiteralPath $oldLink }
 }
 $run='HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+if ($EnableStartup) {
+    New-Item -Path $run -Force | Out-Null
+    $startupName='Floatlet'
+    foreach ($key in @('DelightIsland','GlideIsland','Floatlet')) {
+        $value=(Get-ItemProperty -Path $run -ErrorAction SilentlyContinue).$key
+        if ($value -in (@($target)+$oldTargets | ForEach-Object { '"'+$_+'"' })) { $startupName=$key; break }
+    }
+    New-ItemProperty -Path $run -Name $startupName -Value ('"'+$target+'"') -PropertyType String -Force | Out-Null
+    $approved='HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run'
+    New-Item -Path $approved -Force | Out-Null
+    New-ItemProperty -Path $approved -Name $startupName -Value ([byte[]](2,0,0,0,0,0,0,0,0,0,0,0)) -PropertyType Binary -Force | Out-Null
+}
 if ($existing) {
     # Preserve the registry value name and Windows StartupApproved preferences.
     foreach ($key in @('DelightIsland','GlideIsland','Floatlet')) {

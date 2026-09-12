@@ -1,5 +1,5 @@
 export type Evidence = 'confirmed' | 'unsupported' | 'not-tested';
-export interface Release { version:string; date:string; architecture:'x64'; windows:string; url:string; size:number; sha256:string; signing:'unsigned'; notes:string; channel:'preview'; }
+export interface Release { version:string; date:string; zipUrl?:string; architecture:'x64'; windows:string; url:string; size:number; sha256:string; signing:'unsigned'; notes:string; channel:'preview'; }
 export const product = { name:'Floatlet', description:'Music, files and useful controls, gathered into one compact companion for Windows.', repository:'https://github.com/mithilkatkoria/floatlet', support:'https://github.com/mithilkatkoria/floatlet/issues', author:'Mithil Katkoria', origin:import.meta.env.SITE_ORIGIN || 'https://floatlet.vercel.app', mode:import.meta.env.SITE_MODE || 'production', consentVersion:'1', legalApproved:false, mediaApproved:false };
 export const features: {name:string;status:Evidence;evidence:string}[] = [
 {name:'Music and hover transport',status:'confirmed',evidence:'src/app/main.cpp; src/services/media.cpp'},
