@@ -1,0 +1,32 @@
+[
+  {
+    "device": "mobile",
+    "url": "https://floatlet.vercel.app/",
+    "date": "2026-09-12T08:46:03.978Z",
+    "lighthouseVersion": "13.4.1",
+    "scores": {
+      "performance": 100,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100,
+      "agentic-browsing": 100
+    },
+    "runtimeError": null,
+    "note": "Report completed. CLI exited with an Edge temporary-profile cleanup EPERM error after writing the report. Laboratory observation only."
+  },
+  {
+    "device": "desktop",
+    "url": "https://floatlet.vercel.app/",
+    "date": "2026-09-12T08:47:09.335Z",
+    "lighthouseVersion": "13.4.1",
+    "scores": {
+      "performance": 100,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100,
+      "agentic-browsing": 100
+    },
+    "runtimeError": null,
+    "note": "Report completed. CLI exited with an Edge temporary-profile cleanup EPERM error after writing the report. Laboratory observation only."
+  }
+]

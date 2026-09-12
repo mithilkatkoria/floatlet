@@ -32,3 +32,5 @@ Updated 12 September 2026. Live address: https://floatlet.vercel.app
 - Analytics IDs only if measurement is wanted. Keep tracking disabled until the privacy notice and actual vendor request behavior are reviewed.
 
 Lighthouse reports are saved locally under audit. The first mobile run found the issues recorded above; its process also reported an Edge temporary-profile cleanup error after writing the report. Scores are lab observations, not ranking or performance guarantees.
+
+Final reports: mobile and desktop completed on 12 September 2026. See reports/lighthouse-summary.json for category scores and the CLI cleanup limitation. GitHub Windows x64 and Website jobs passed for commit 7fc3859. The installed EXE hash matches the published 0.5.0 EXE. Live sitemap contains nine URLs; homepage metadata is index,follow. Browser console reported no errors in the final interaction check.
