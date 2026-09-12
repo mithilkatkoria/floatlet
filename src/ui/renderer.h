@@ -10,8 +10,8 @@
 #include <map>
 #include "services/artwork.h"
 namespace delight {
-struct Line { std::wstring text; float x,y,size; bool secondary=false; float width=0; bool centered=false; };
-enum class Glyph { Music, Play, Pause, Previous, Next, Folder, Pin, Plus, More, Disc, Chip, Spotify, Rule, Card, Slider, Close, Speaker, Sun, AirPods, Logo, Gear, Timer, Toggle, Microphone };
+struct Line { std::wstring text; float x,y,size; bool secondary=false; float width=0; bool centered=false; bool glow=false; };
+enum class Glyph { Music, Play, Pause, Previous, Next, Folder, Pin, Plus, More, Disc, Chip, Spotify, Rule, Card, Slider, Close, Speaker, Sun, AirPods, Logo, Gear, Timer, Toggle, Microphone, Wavebar, RoundButton };
 struct Mark { Glyph glyph; float x,y,size; bool active=false; bool disabled=false; float height=28,value=0; };
 class Renderer {
     winrt::Windows::System::DispatcherQueueController queue{nullptr};

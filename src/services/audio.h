@@ -13,6 +13,7 @@ class Audio final : public IMMNotificationClient, public IAudioEndpointVolumeCal
     std::atomic<ULONG> refs{1}; std::atomic<HWND> window{nullptr};
     winrt::com_ptr<IMMDeviceEnumerator> enumerator;
     winrt::com_ptr<IAudioEndpointVolume> endpoint;
+    winrt::com_ptr<IAudioMeterInformation> meter;
     void notify(UINT message){if(auto h=window.load())PostMessageW(h,message,0,0);}
 public:
     float level=0; bool muted=false,available=false; std::wstring name,id;
@@ -32,9 +33,10 @@ public:
     HRESULT STDMETHODCALLTYPE OnPropertyValueChanged(LPCWSTR,const PROPERTYKEY) override{return S_OK;}
     void start(HWND h){window=h;if(SUCCEEDED(CoCreateInstance(__uuidof(MMDeviceEnumerator),nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(enumerator.put())))){enumerator->RegisterEndpointNotificationCallback(this);bind();}}
     void bind(){
-        if(endpoint)endpoint->UnregisterControlChangeNotify(this);endpoint=nullptr;available=false;name.clear();id.clear();
+        if(endpoint)endpoint->UnregisterControlChangeNotify(this);endpoint=nullptr;meter=nullptr;available=false;name.clear();id.clear();
         if(!enumerator)return;winrt::com_ptr<IMMDevice> device;
         if(FAILED(enumerator->GetDefaultAudioEndpoint(eRender,eMultimedia,device.put())))return;
+        device->Activate(__uuidof(IAudioMeterInformation),CLSCTX_INPROC_SERVER,nullptr,meter.put_void());
         LPWSTR raw=nullptr;if(SUCCEEDED(device->GetId(&raw))){id=raw;CoTaskMemFree(raw);}
         winrt::com_ptr<IPropertyStore> properties;
         if(SUCCEEDED(device->OpenPropertyStore(STGM_READ,properties.put()))){PROPVARIANT v{};if(SUCCEEDED(properties->GetValue(PKEY_Device_FriendlyName,&v))&&v.vt==VT_LPWSTR&&v.pwszVal)name=v.pwszVal;PropVariantClear(&v);}
@@ -43,7 +45,8 @@ public:
     void read(){BOOL m=FALSE;available=endpoint&&SUCCEEDED(endpoint->GetMasterVolumeLevelScalar(&level))&&SUCCEEDED(endpoint->GetMute(&m));muted=m!=FALSE;}
     bool set(float value){if(!endpoint)return false;bool ok=SUCCEEDED(endpoint->SetMasterVolumeLevelScalar(std::clamp(value,0.f,1.f),nullptr));read();return ok;}
     bool toggle(){if(!endpoint)return false;read();bool ok=SUCCEEDED(endpoint->SetMute(!muted,nullptr));read();return ok;}
+    float peak(){float value=0;if(meter)meter->GetPeakValue(&value);return std::clamp(value,0.f,1.f);}
     bool airpods() const {auto n=name;std::transform(n.begin(),n.end(),n.begin(),[](wchar_t c){return wchar_t(towlower(c));});return n.find(L"airpods")!=std::wstring::npos;}
-    void stop(){window=nullptr;if(endpoint)endpoint->UnregisterControlChangeNotify(this);endpoint=nullptr;if(enumerator)enumerator->UnregisterEndpointNotificationCallback(this);enumerator=nullptr;}
+    void stop(){window=nullptr;meter=nullptr;if(endpoint)endpoint->UnregisterControlChangeNotify(this);endpoint=nullptr;if(enumerator)enumerator->UnregisterEndpointNotificationCallback(this);enumerator=nullptr;}
 };
 }

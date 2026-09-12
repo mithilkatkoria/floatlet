@@ -1,0 +1,12 @@
+# Floatlet
+
+> Free, open-source Dynamic Island companion for Windows 11. Built with C++ and Windows composition. Independent of Apple and Microsoft.
+
+- [Overview](https://floatlet.vercel.app/dynamic-island-for-windows/): features, Windows compatibility and limitations.
+- [Download](https://floatlet.vercel.app/download/): current unsigned x64 preview, checksum and release link.
+- [Install](https://floatlet.vercel.app/docs/install/): portable and per-user installation.
+- [Capabilities](https://floatlet.vercel.app/docs/capabilities/): implemented features and unsupported integrations.
+- [Privacy](https://floatlet.vercel.app/privacy/): local settings, optional calendar and website hosting.
+- [Source](https://github.com/mithilkatkoria/floatlet): MIT license, issues and contributions.
+
+Compatibility: Windows 11 x64 on Intel/AMD; Windows 11 ARM through x64 emulation. No native ARM64 release. Not restricted to Surface. No guaranteed battery savings, zero-resource operation or search rankings. Refer to the download page for the current version.

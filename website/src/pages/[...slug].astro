@@ -1,0 +1,6 @@
+---
+import Layout from '../layouts/Layout.astro';import pages from '../data/pages.json';
+export function getStaticPaths(){return pages.map(page=>({params:{slug:page.slug},props:{page}}))}
+const {page}=Astro.props;
+---
+<Layout title={page.title+' | Floatlet'} description={page.lead}><section class="page wrap"><p class="eyebrow">FLOATLET / {page.title.toUpperCase()}</p><h1>{page.title}</h1><p class="lead">{page.lead}</p><div class="prose" set:html={page.html}/></section></Layout>

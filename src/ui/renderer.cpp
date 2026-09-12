@@ -64,6 +64,8 @@ void Renderer::draw(float w,float h,float dpi,const std::vector<Line>& lines,boo
         case Glyph::Timer:{brush->SetOpacity(.16f);ellipse(.5f,.5f,.42f);brush->SetOpacity(1);if(!highContrast)brush->SetColor(D2D1::ColorF(1.f,.64f,.28f));float fraction=std::clamp(mark.value,0.f,1.f);
             if(fraction>=.9999f)dc->DrawEllipse(D2D1::Ellipse({x+s*.5f,y+s*.5f},s*.42f,s*.42f),brush.get(),std::max(2.f,s*.045f));
             else if(fraction>0){winrt::com_ptr<ID2D1Factory> f;dc->GetFactory(f.put());winrt::com_ptr<ID2D1PathGeometry> path;check_hresult(f->CreatePathGeometry(path.put()));winrt::com_ptr<ID2D1GeometrySink> sink;check_hresult(path->Open(sink.put()));sink->BeginFigure({x+s*.5f,y+s*.08f},D2D1_FIGURE_BEGIN_HOLLOW);float a=-1.5707963f+6.2831853f*fraction;sink->AddArc(D2D1::ArcSegment({x+s*(.5f+.42f*cosf(a)),y+s*(.5f+.42f*sinf(a))},{s*.42f,s*.42f},0,D2D1_SWEEP_DIRECTION_CLOCKWISE,fraction>.5f?D2D1_ARC_SIZE_LARGE:D2D1_ARC_SIZE_SMALL));sink->EndFigure(D2D1_FIGURE_END_OPEN);check_hresult(sink->Close());dc->DrawGeometry(path.get(),brush.get(),std::max(2.f,s*.045f));}break;}
+        case Glyph::Wavebar:{if(!highContrast)brush->SetColor(D2D1::ColorF(.53f,.48f,.72f));float barHeight=std::max(2.f,std::min(12.f,mark.height)*std::clamp(mark.value,0.f,1.f));dc->FillRoundedRectangle(D2D1::RoundedRect({x,y+(mark.height-barHeight)/2,x+s,y+(mark.height+barHeight)/2},s/2,s/2),brush.get());break;}
+        case Glyph::RoundButton:{if(!highContrast)brush->SetColor(mark.active?D2D1::ColorF(.16f,.46f,.29f):D2D1::ColorF(.22f,.23f,.24f));brush->SetOpacity(.6f);dc->FillEllipse(D2D1::Ellipse({x+s/2,y+s/2},s/2,s/2),brush.get());brush->SetOpacity(.35f);dc->DrawEllipse(D2D1::Ellipse({x+s/2,y+s/2},s/2-3,s/2-3),brush.get(),1);break;}
         case Glyph::Card:brush->SetOpacity(highContrast?.18f:.055f);dc->FillRoundedRectangle(D2D1::RoundedRect({x,y,x+s,y+mark.height},12,12),brush.get());break;
         case Glyph::Slider:{brush->SetOpacity(.10f);dc->FillRoundedRectangle(D2D1::RoundedRect({x,y,x+s,y+24},12,12),brush.get());float width=12+(s-24)*std::clamp(mark.value,0.f,1.f);brush->SetOpacity(mark.disabled?.1f:.75f);dc->FillRoundedRectangle(D2D1::RoundedRect({x,y,x+width+12,y+24},12,12),brush.get());brush->SetOpacity(mark.disabled?.3f:1);dc->FillEllipse(D2D1::Ellipse({x+width,y+12},10,10),brush.get());break;}
         case Glyph::Close:stroke(.25f,.25f,.75f,.75f);stroke(.75f,.25f,.25f,.75f);break;
@@ -108,6 +110,8 @@ void Renderer::draw(float w,float h,float dpi,const std::vector<Line>& lines,boo
         DWRITE_TRIMMING trim{DWRITE_TRIMMING_GRANULARITY_CHARACTER,0,0};
         com_ptr<IDWriteInlineObject> ellipsis; write->CreateEllipsisTrimmingSign(format.get(),ellipsis.put()); format->SetTrimming(&trim,ellipsis.get());}
         format->SetTextAlignment(line.centered?DWRITE_TEXT_ALIGNMENT_CENTER:DWRITE_TEXT_ALIGNMENT_LEADING);
+        brush->SetColor(color(fg));
+        if(line.glow&&!highContrast){brush->SetColor(D2D1::ColorF(.78f,.71f,.97f));brush->SetOpacity(.07f);for(auto shift:{-1.f,1.f})dc->DrawTextW(line.text.c_str(),static_cast<UINT32>(line.text.size()),format.get(),D2D1::RectF(line.x+shift,line.y+shift,line.x+line.width+shift,line.y+line.size*1.6f+shift),brush.get());}
         brush->SetOpacity(line.secondary?.62f:1.f);
         dc->DrawTextW(line.text.c_str(),static_cast<UINT32>(line.text.size()),format.get(),D2D1::RectF(line.x,line.y,line.width>0?line.x+line.width:w-18,line.y+line.size*1.6f),brush.get(),D2D1_DRAW_TEXT_OPTIONS_CLIP);
     }

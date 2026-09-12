@@ -9,3 +9,5 @@ if ($LASTEXITCODE) { throw 'Storage tests failed' }
 if ($LASTEXITCODE) { throw 'Integration tests failed' }
 & "$root\out\$Architecture\Release\calendar_tests.exe"
 if ($LASTEXITCODE) { throw 'Calendar tests failed' }
+& "$root\out\$Architecture\Release\time_tools_tests.exe"
+if ($LASTEXITCODE) { throw 'Clock tests failed' }

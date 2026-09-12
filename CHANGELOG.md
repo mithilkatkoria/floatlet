@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0 - Clocks and quiet motion
+
+- Running stopwatch stays visible in the compact island. Timer completion and alarms expand into a notification and play a dismissible chime.
+- Compact music uses a softly smoothed audio-level waveform with a 12 DIP maximum height and muted lavender color. It does not record audio or grow the capsule.
+- Larger hover playback targets, screenshot-copy notifications and a subtle settings credit.
+- Published the Floatlet website with downloads, guides and an interactive sample island.
+- Windows 11 x64 release for Intel and AMD PCs, also usable through Windows 11 ARM emulation. This is not restricted to Surface hardware. Hardware-specific controls remain conditional.
+
 ## 0.4.0 - Floatlet
 
 - Renamed the app, executable, shortcuts and public project to Floatlet.

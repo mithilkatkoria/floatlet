@@ -1,0 +1,1 @@
+import raw from './release.json';import type {Release} from './site';export const release=raw as Release|null;

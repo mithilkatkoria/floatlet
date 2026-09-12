@@ -10,7 +10,7 @@ int checks=0;
 void require(bool ok) { ++checks; if(!ok) { std::cerr<<"Failed check "<<checks<<'\n'; std::exit(1); } }
 int main() {
     require(hoverTransport(166,41)==0);require(hoverTransport(204,41)==1);require(hoverTransport(242,41)==2);
-    require(hoverTransport(149,41)==-1);require(hoverTransport(182,41)==-1);require(hoverTransport(220,41)==-1);require(hoverTransport(258,41)==-1);require(hoverTransport(166,26)==-1);require(hoverTransport(166,55)==-1);
+    require(hoverTransport(147,41)==-1);require(hoverTransport(184,41)==-1);require(hoverTransport(222,41)==-1);require(hoverTransport(260,41)==-1);require(hoverTransport(166,23)==-1);require(hoverTransport(166,56)==-1);
     Spring spring;spring.snap(224,0);
     for(int i=0;i<100;++i){double t=i*.009;spring.sample(t);auto p=spring.position,v=spring.velocity;spring.retarget(i%2?224:344,t);require(spring.position==p&&spring.velocity==v);}
     spring.sample(5);require(spring.settled());

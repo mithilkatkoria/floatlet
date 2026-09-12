@@ -6,7 +6,7 @@ A compact Dynamic Island companion for Windows 11. Music, a temporary file tray,
 
 Created by [Mithil Katkoria](https://github.com/mithilkatkoria). Independent open-source software, unaffiliated with Apple, Microsoft or integrated applications.
 
-**[Download](https://github.com/mithilkatkoria/floatlet/releases)** | [Contribute](CONTRIBUTING.md) | [MIT license](LICENSE)
+**[Website](https://floatlet.vercel.app) | [Download](https://github.com/mithilkatkoria/floatlet/releases)** | [Contribute](CONTRIBUTING.md) | [MIT license](LICENSE)
 
 ## Features
 
@@ -15,7 +15,7 @@ Created by [Mithil Katkoria](https://github.com/mithilkatkoria). Independent ope
 | Music | Windows media-session artwork, artist and title; previous, play/pause and next on hover. Optional icon-only resting view. |
 | File tray | Drop files, drag references back out, remove references and browse recent saved screenshots. Originals remain in place. |
 | Controls | Volume slider and mute, supported internal-display brightness, nearby Wi-Fi and system status. |
-| Timer | Minute adjustment, quick presets, pause/resume, compact progress ring and completion alert. |
+| Clocks | Timer presets, stopwatch with compact live count, alarms and expanding completion alerts with a dismissible chime. |
 | Calendar | Month navigation and double-click day agenda from a read-only Google Calendar subscription. |
 | Microphone | Event-driven activity detection for selected communication apps and browsers, with endpoint mute. No audio recording. |
 | Multiple monitors | Pointer following with per-monitor DPI handling. Dragging and menus hold position. |
@@ -70,7 +70,7 @@ Requires Windows 11, Visual Studio 2022 C++ desktop Build Tools, its CMake compo
 .\scripts\package.ps1 -Architecture x64
 ```
 
-The build runs model, storage, integration and calendar tests. Graphics and real-window tests require an interactive desktop. ARM64 builds require the corresponding MSVC tools; pass `-Architecture arm64` when installed. CI builds and tests x64 on Windows.
+The build runs model, storage, integration, calendar and clock tests. Graphics and real-window tests require an interactive desktop. ARM64 builds require the corresponding MSVC tools; pass `-Architecture arm64` when installed. CI builds and tests x64 on Windows.
 
 `src/app` coordinates the window; `src/ui` owns layout and drawing; `src/services` integrates Windows and calendar data; `src/platform` handles windows and file transfer; `src/storage` persists settings. Compatibility identifiers and the settings directory retain the original internal name `DelightIsland`.
 
