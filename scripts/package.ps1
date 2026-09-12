@@ -8,7 +8,7 @@ $offset=[BitConverter]::ToInt32($bytes,0x3c)
 $machine=[BitConverter]::ToUInt16($bytes,$offset+4)
 $expected=if ($Architecture -eq 'arm64') {0xAA64} else {0x8664}
 if ($machine -ne $expected) { throw 'Binary architecture does not match package label.' }
-$dest=Join-Path $root "packages\Floatlet-0.6.0-$Architecture"
+$dest=Join-Path $root "packages\Floatlet-0.6.1-$Architecture"
 New-Item -ItemType Directory -Path $dest -Force | Out-Null
 $inputs=@($exe,(Join-Path $root 'README.md'),(Join-Path $root 'LICENSE'),(Join-Path $root 'CHANGELOG.md'),(Join-Path $PSScriptRoot 'install.ps1'),(Join-Path $PSScriptRoot 'uninstall.ps1'))
 $archive=@()

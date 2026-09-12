@@ -17,6 +17,11 @@ int main(){try{
     using namespace std::chrono;auto london=ical::stamp("20260925T120000","Europe/London");require(ical::absolute(london)==sys_days{year{2026}/9/25}+hours{11});auto winter=ical::stamp("20261225T120000","Europe/London");require(ical::absolute(winter)==sys_days{year{2026}/12/25}+hours{12});
     bool rejected=false;try{ical::stamp("20260230T090000");}catch(...){rejected=true;}require(rejected);
     require(CalendarFeed::validUrl(L"https://calendar.google.com/calendar/ical/example/basic.ics"));require(!CalendarFeed::validUrl(L"https://calendar.google.com.evil.test/calendar/ical/basic.ics"));require(!CalendarFeed::validUrl(L"http://calendar.google.com/calendar/ical/basic.ics"));require(!CalendarFeed::validUrl(L"https://calendar.google.com/calendar/ical/basic.ics\r\nInjected"));
+    auto link=L"https://calendar.google.com/calendar/ical/example/basic.ics";
+    auto links=CalendarFeed::parseLinks(std::wstring(link)+L"\r\n  "+link+L"  \nhttps://calendar.google.com/calendar/ical/second/basic.ics");require(links.size()==2);require(CalendarFeed::parseLinks(CalendarFeed::joinLinks(links))==links);require(CalendarFeed::parseLinks(L"").empty());
+    rejected=false;try{CalendarFeed::parseLinks(std::wstring(link)+L"\nhttps://evil.test/feed.ics");}catch(...){rejected=true;}require(rejected);
+    std::wstring many;for(int i=0;i<9;++i)many+=L"https://calendar.google.com/calendar/ical/"+std::to_wstring(i)+L"/basic.ics\n";rejected=false;try{CalendarFeed::parseLinks(many);}catch(...){rejected=true;}require(rejected);
+    auto start=sys_days{year{2026}/9/25}+hours{10};ical::Entry later{"Later","",660,720,false,"same",start+hours{1}},early{"Early","",600,660,false,"early",start};std::vector<ical::Entry> merged{later};CalendarFeed::mergeEntries(merged,{early,later});require(merged.size()==2&&merged.front().title=="Early");auto moved=later;moved.start+=hours{1};CalendarFeed::mergeEntries(merged,{moved});require(merged.size()==3);
     std::cout<<checks<<" timer, calendar recurrence, timezone and subscription-boundary checks passed\n";
     return 0;
 }catch(const std::exception& e){std::cerr<<e.what()<<" at "<<checks<<'\n';return 1;}}

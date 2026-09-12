@@ -1,4 +1,5 @@
 #include "media.h"
+#include <winrt/Windows.ApplicationModel.h>
 #include <winrt/Windows.Graphics.Imaging.h>
 using namespace winrt;
 using namespace Windows::Media::Control;
@@ -24,8 +25,9 @@ fire_and_forget Media::refresh() {
     try {
         MediaSnapshot next;
         Windows::Storage::Streams::IRandomAccessStreamReference thumbnail{nullptr};
-        if(session){auto selected=session;auto p=co_await selected.TryGetMediaPropertiesAsync();if(id!=generation||!hwnd)co_return;auto info=selected.GetPlaybackInfo();auto controls=info.Controls();next.title=std::wstring(p.Title());next.artist=std::wstring(p.Artist());next.playing=info.PlaybackStatus()==GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing;next.play=controls.IsPlayPauseToggleEnabled();next.previous=controls.IsPreviousEnabled();next.next=controls.IsNextEnabled();auto source=std::wstring(selected.SourceAppUserModelId());next.spotify=source.find(L"Spotify")!=std::wstring::npos||source.find(L"spotify")!=std::wstring::npos;thumbnail=p.Thumbnail();}
-        {std::scoped_lock lock(mutex);if(next.title==snapshot.title&&next.artist==snapshot.artist&&next.spotify==snapshot.spotify)next.artwork=snapshot.artwork;}
+        if(session){auto selected=session;auto p=co_await selected.TryGetMediaPropertiesAsync();if(id!=generation||!hwnd)co_return;auto info=selected.GetPlaybackInfo();auto controls=info.Controls();next.title=std::wstring(p.Title());next.artist=std::wstring(p.Artist());next.playing=info.PlaybackStatus()==GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing;next.play=controls.IsPlayPauseToggleEnabled();next.previous=controls.IsPreviousEnabled();next.next=controls.IsNextEnabled();auto source=std::wstring(selected.SourceAppUserModelId());next.source=source;next.spotify=source.find(L"Spotify")!=std::wstring::npos||source.find(L"spotify")!=std::wstring::npos;thumbnail=p.Thumbnail();}
+        {std::scoped_lock lock(mutex);if(next.title==snapshot.title&&next.artist==snapshot.artist&&next.source==snapshot.source)next.artwork=snapshot.artwork;}
+        if(!thumbnail&&!next.artwork&&!next.source.empty())try{thumbnail=Windows::ApplicationModel::AppInfo::GetFromAppUserModelId(next.source).DisplayInfo().GetLogo({float(ArtworkEdge),float(ArtworkEdge)});}catch(...){}
         bool needsArt=thumbnail&&!next.artwork;
         {std::scoped_lock lock(mutex);snapshot=std::move(next);} if(hwnd)PostMessageW(hwnd,WM_APP+2,0,0);
         pendingGeneration=id;pendingArt=needsArt?thumbnail:nullptr;if(needsArt&&!decoding)decodeArtwork();

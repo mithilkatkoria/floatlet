@@ -28,7 +28,7 @@ for ($attempt=0; $attempt -lt 12; $attempt++) {
     }
 }
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'uninstall.ps1') -Destination $install -Force
-Set-Content -LiteralPath (Join-Path $install 'installed.marker') -Value 'Floatlet 0.6.0'
+Set-Content -LiteralPath (Join-Path $install 'installed.marker') -Value 'Floatlet 0.6.1'
 $shell=New-Object -ComObject WScript.Shell
 $shortcut=$shell.CreateShortcut((Join-Path ([Environment]::GetFolderPath('Programs')) 'Floatlet.lnk'))
 $shortcut.TargetPath=$target

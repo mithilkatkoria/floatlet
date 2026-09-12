@@ -35,11 +35,13 @@ New installations start with Windows by default; use `-NoStartup` to opt out. Up
 
 The gear opens preferences. Ctrl+Shift+F12 opens with keyboard focus, Escape collapses, and Ctrl+Alt+H hides or shows. Right-click opens additional actions. Exit before running the installed `uninstall.ps1`; uninstall retains settings.
 
-## Calendar subscription
+## Calendar subscriptions
 
 In Google Calendar on the web, open **Settings > Settings for my calendars > your calendar > Integrate calendar**. Copy its **Secret address in iCal format** into Floatlet's **Preferences > Google Calendar** dialog. Treat that address as a password; never include it in issues or screenshots.
 
-Windows DPAPI encrypts the link locally for your user. Events are fetched over HTTPS on demand and cached in memory for 15 minutes. Double-click a day to open its agenda; Refresh requests an update. Disconnect removes the stored link. No events are uploaded, created or edited.
+Use Add calendar for each link, then Save. Up to eight Google Calendar subscriptions share one chronological agenda and upcoming reminders. Select a saved calendar and choose Remove selected, then Save, to disconnect it. Existing single-calendar connections are preserved.
+
+Windows DPAPI encrypts links locally for your user. One background worker checks connected calendars about once per minute and caches parsed events in memory. Duplicate links and matching event occurrences are filtered out. A failed feed does not prevent other calendars from syncing, and stale offline events do not trigger new reminders. Double-click a day to open its agenda; Refresh requests an update. No events are uploaded, created or edited.
 
 Common daily, weekly, monthly and yearly recurrence patterns, exceptions and overrides are supported. Unsupported patterns are reported. This is not a complete RFC 5545 client. Only Google Calendar subscription URLs are accepted in this version.
 

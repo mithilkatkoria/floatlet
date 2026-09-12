@@ -8,7 +8,7 @@
 #include <winrt/Windows.Storage.Streams.h>
 #include "artwork.h"
 namespace delight {
-struct MediaSnapshot {std::wstring title=L"No media session",artist=L"Open a player to begin";bool playing=false,play=false,previous=false,next=false;bool spotify=false;std::shared_ptr<const Artwork> artwork;};
+struct MediaSnapshot {std::wstring title=L"No media session",artist=L"Open a player to begin";bool playing=false,play=false,previous=false,next=false;bool spotify=false;std::shared_ptr<const Artwork> artwork;std::wstring source;};
 class Media:public std::enable_shared_from_this<Media> {
     std::mutex mutex;
     MediaSnapshot snapshot;

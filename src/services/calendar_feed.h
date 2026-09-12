@@ -29,23 +29,53 @@ class CalendarFeed {
         DATA_BLOB input{DWORD(value.size()*sizeof(wchar_t)),reinterpret_cast<BYTE*>(const_cast<wchar_t*>(value.data()))},output{};if(!CryptProtectData(&input,L"Floatlet calendar",nullptr,nullptr,nullptr,CRYPTPROTECT_UI_FORBIDDEN,&output))winrt::throw_last_error();
         try{std::filesystem::create_directories(file.parent_path());auto temp=file;temp+=L".tmp";{std::ofstream stream(temp,std::ios::binary|std::ios::trunc);stream.write(reinterpret_cast<char*>(output.pbData),output.cbData);stream.flush();if(!stream)throw std::runtime_error("Calendar settings write failed");}if(!MoveFileExW(temp.c_str(),file.c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH))winrt::throw_last_error();}catch(...){LocalFree(output.pbData);throw;}LocalFree(output.pbData);
     }
-    void load(){try{if(!std::filesystem::exists(file)||std::filesystem::file_size(file)>16384)return;std::ifstream stream(file,std::ios::binary);std::string bytes((std::istreambuf_iterator<char>(stream)),{});DATA_BLOB input{DWORD(bytes.size()),reinterpret_cast<BYTE*>(bytes.data())},output{};if(CryptUnprotectData(&input,nullptr,nullptr,nullptr,nullptr,CRYPTPROTECT_UI_FORBIDDEN,&output)){if(output.cbData%sizeof(wchar_t)==0)url.assign(reinterpret_cast<wchar_t*>(output.pbData),output.cbData/sizeof(wchar_t));LocalFree(output.pbData);if(!validUrl(url))url.clear();}}catch(...){url.clear();}snapshot.connected=!url.empty();}
-    void run(){ical::Calendar cache;ULONGLONG fetched=0;unsigned cachedGeneration=~0u;
+    void load(){try{if(!std::filesystem::exists(file)||std::filesystem::file_size(file)>131072)return;std::ifstream stream(file,std::ios::binary);std::string bytes((std::istreambuf_iterator<char>(stream)),{});DATA_BLOB input{DWORD(bytes.size()),reinterpret_cast<BYTE*>(bytes.data())},output{};if(CryptUnprotectData(&input,nullptr,nullptr,nullptr,nullptr,CRYPTPROTECT_UI_FORBIDDEN,&output)){if(output.cbData%sizeof(wchar_t)==0)url.assign(reinterpret_cast<wchar_t*>(output.pbData),output.cbData/sizeof(wchar_t));LocalFree(output.pbData);try{parseLinks(url);}catch(...){url.clear();}}}catch(...){url.clear();}snapshot.connected=!url.empty();}
+    void run(){
+        struct Cached {ical::Calendar calendar;ULONGLONG fetched=0;};
+        std::map<std::wstring,Cached> caches;
         for(;;){std::wstring request;std::chrono::year_month_day date;unsigned version;bool reload;
             {std::unique_lock lock(mutex);if(url.empty())cv.wait(lock,[&]{return done||pending;});else cv.wait_for(lock,std::chrono::minutes{1},[&]{return done||pending;});if(done)return;pending=false;request=url;date=selected;version=generation;reload=force;force=false;}
-            AgendaSnapshot next;next.year=int(date.year());next.month=unsigned(date.month());next.day=unsigned(date.day());next.connected=!request.empty();
-            if(version!=cachedGeneration){cache={};fetched=0;cachedGeneration=version;}
-            if(!request.empty())try{if(reload||!fetched||GetTickCount64()-fetched>=55*1000){cache=ical::parse(download(request));fetched=GetTickCount64();}next.agenda=ical::day(cache,date);auto today=std::chrono::floor<std::chrono::days>(std::chrono::current_zone()->to_local(std::chrono::system_clock::now()));for(int d=0;d<2;++d){auto dayEvents=ical::day(cache,std::chrono::year_month_day{today+std::chrono::days{d}});for(auto& entry:dayEvents.entries)if(!entry.allDay)next.upcoming.push_back(entry);}next.status=next.agenda.unsupported?L"Some calendar rules are not supported":L"Synced. Checks for changes every minute.";}
-            catch(...){next.status=L"Could not refresh calendar. Check its link.";if(fetched&&cachedGeneration==version)try{next.agenda=ical::day(cache,date);auto today=std::chrono::floor<std::chrono::days>(std::chrono::current_zone()->to_local(std::chrono::system_clock::now()));for(int d=0;d<2;++d){auto dayEvents=ical::day(cache,std::chrono::year_month_day{today+std::chrono::days{d}});for(auto& entry:dayEvents.entries)if(!entry.allDay)next.upcoming.push_back(entry);}next.status=L"Offline. Showing the last loaded calendar.";}catch(...) {}}
+            auto links=parseLinks(request);
+            std::erase_if(caches,[&](auto& item){return std::find(links.begin(),links.end(),item.first)==links.end();});
+            AgendaSnapshot next;next.year=int(date.year());next.month=unsigned(date.month());next.day=unsigned(date.day());next.connected=!links.empty();
+            unsigned fresh=0,failed=0;
+            auto today=std::chrono::floor<std::chrono::days>(std::chrono::current_zone()->to_local(std::chrono::system_clock::now()));
+            for(auto& link:links){
+                {std::scoped_lock lock(mutex);if(done)return;if(version!=generation)break;}
+                auto& cache=caches[link];bool online=true;
+                try{if(reload||!cache.fetched||GetTickCount64()-cache.fetched>=55*1000){cache.calendar=ical::parse(download(link));cache.fetched=GetTickCount64();}++fresh;}
+                catch(...){online=false;++failed;}
+                if(!cache.fetched)continue;
+                try{auto day=ical::day(cache.calendar,date);next.agenda.unsupported+=day.unsupported;mergeEntries(next.agenda.entries,day.entries);
+                    if(online)for(int d=0;d<2;++d){auto events=ical::day(cache.calendar,std::chrono::year_month_day{today+std::chrono::days{d}});std::erase_if(events.entries,[](auto& e){return e.allDay;});mergeEntries(next.upcoming,events.entries);}
+                }catch(...){++next.agenda.unsupported;}
+            }
+            if(!links.empty())next.status=failed?(fresh?L"Some calendars offline. Available calendars synced.":L"Offline. Showing last loaded events."):(std::to_wstring(links.size())+L" calendar(s) synced. Checks every minute.");
+            if(!failed&&next.agenda.unsupported)next.status=L"Synced. Some calendar rules are unsupported.";
             {std::scoped_lock lock(mutex);if(done)return;if(version!=generation)continue;snapshot=std::move(next);}PostMessageW(hwnd,WM_APP+13,0,0);
         }
     }
 public:
     static bool validUrl(const std::wstring& value){return value.size()<=4096&&value.starts_with(L"https://calendar.google.com/calendar/ical/")&&value.find(L".ics")!=std::wstring::npos&&value.find_first_of(L"\r\n\t ")==std::wstring::npos&&value.find(L'\0')==std::wstring::npos&&value.find(L'#')==std::wstring::npos;}
+    static constexpr size_t MaxCalendars=8;
+    static std::vector<std::wstring> parseLinks(const std::wstring& value){
+        std::vector<std::wstring> links;std::wistringstream input(value);std::wstring line;
+        while(std::getline(input,line)){auto first=line.find_first_not_of(L" \t\r");if(first==std::wstring::npos)continue;line=line.substr(first,line.find_last_not_of(L" \t\r")-first+1);
+            if(!validUrl(line))throw std::runtime_error("Use Google Calendar HTTPS iCal links");
+            if(std::find(links.begin(),links.end(),line)==links.end())links.push_back(line);
+            if(links.size()>MaxCalendars)throw std::runtime_error("Up to eight calendars are supported");
+        }return links;
+    }
+    static std::wstring joinLinks(const std::vector<std::wstring>& links){std::wstring text;for(auto& link:links){if(!text.empty())text+=L"\n";text+=link;}return text;}
+    static void mergeEntries(std::vector<ical::Entry>& target,const std::vector<ical::Entry>& source){
+        for(auto& e:source){bool duplicate=std::any_of(target.begin(),target.end(),[&](auto& existing){return existing.start==e.start&&existing.allDay==e.allDay&&(!e.uid.empty()?existing.uid==e.uid:existing.uid.empty()&&existing.title==e.title);});if(!duplicate)target.push_back(e);}
+        std::stable_sort(target.begin(),target.end(),[](auto& a,auto& b){if(a.allDay!=b.allDay)return a.allDay;return a.start<b.start;});
+    }
+    std::vector<std::wstring> connections(){std::scoped_lock lock(mutex);return parseLinks(url);}
     CalendarFeed(HWND h,std::filesystem::path folder):hwnd(h),file(std::move(folder)/L"calendar.bin"){load();worker=std::thread([this]{run();});}
     ~CalendarFeed(){{std::scoped_lock lock(mutex);done=true;}cv.notify_one();worker.join();}
     AgendaSnapshot get(){std::scoped_lock lock(mutex);return snapshot;}
-    void connect(const std::wstring& value){if(!value.empty()&&!validUrl(value))throw std::runtime_error("Use a Google Calendar HTTPS iCal link");store(value);{std::scoped_lock lock(mutex);url=value;++generation;snapshot={};snapshot.connected=!url.empty();} }
+    void connect(const std::wstring& value){auto normalized=joinLinks(parseLinks(value));store(normalized);{std::scoped_lock lock(mutex);url=normalized;++generation;snapshot={};snapshot.connected=!url.empty();} }
     void request(int year,unsigned month,unsigned day,bool refresh=false){std::chrono::year_month_day date{std::chrono::year{year},std::chrono::month{month},std::chrono::day{day}};if(!date.ok())return;{std::scoped_lock lock(mutex);selected=date;pending=true;force|=refresh;}cv.notify_one();}
 };
 }

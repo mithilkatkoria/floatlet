@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(Floatlet VERSION 0.6.0 LANGUAGES CXX RC)
+project(Floatlet VERSION 0.6.1 LANGUAGES CXX RC)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 enable_testing()

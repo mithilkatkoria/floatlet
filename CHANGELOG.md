@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.1 - App icons and multiple calendars
+
+- Use the Windows app logo when a media session supplies no artwork, with a music-note fallback instead of the Floatlet capsule logo.
+- Connect up to eight Google Calendar subscription links with individual add/remove controls and encrypted local storage.
+- Merge calendar events chronologically, filter duplicate occurrences and continue syncing healthy feeds when another feed is offline.
+- Preserve existing single-calendar subscriptions and five-minute reminders.
+
 ## 0.6.0 - Persistent alerts and calendar reminders
 
 - Icon-only music is slightly wider (84 DIP), with the same small waveform.
