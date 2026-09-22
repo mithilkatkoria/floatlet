@@ -17,7 +17,7 @@ void Renderer::initialize(HWND hwnd) {
     compositor=Compositor();
     auto interop=compositor.as<ABI::Windows::UI::Composition::Desktop::ICompositorDesktopInterop>();
     check_hresult(interop->CreateDesktopWindowTarget(hwnd,FALSE,reinterpret_cast<ABI::Windows::UI::Composition::Desktop::IDesktopWindowTarget**>(put_abi(target))));
-    root=compositor.CreateContainerVisual(); target.Root(root);
+    root=compositor.CreateContainerVisual(); target.Root(root);shell=compositor.CreateRoundedRectangleGeometry();root.Clip(compositor.CreateGeometricClip(shell));
     background=compositor.CreateSpriteVisual();background.Brush(compositor.CreateColorBrush(Windows::UI::Color{255,9,10,12}));root.Children().InsertAtBottom(background);
     content=compositor.CreateSpriteVisual(); root.Children().InsertAtTop(content);
     com_ptr<ID3D11Device> d3d;
@@ -29,6 +29,7 @@ void Renderer::initialize(HWND hwnd) {
     check_hresult(compositor.as<ABI::Windows::UI::Composition::ICompositorInterop>()->CreateGraphicsDevice(device.get(),reinterpret_cast<ABI::Windows::UI::Composition::ICompositionGraphicsDevice**>(put_abi(graphics))));
     check_hresult(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED,__uuidof(IDWriteFactory),reinterpret_cast<IUnknown**>(write.put())));
 }
+void Renderer::roundShell(float width,float height,float scale){float w=std::max(1.f,width*scale-2),h=std::max(1.f,height*scale-2);shell.Offset({(canvasW-w)/2,1});shell.Size({w,h});float radius=std::min(h/2,22*scale);shell.CornerRadius({radius,radius});}
 void Renderer::canvas(float w,float h){canvasW=w;canvasH=h;background.Size({w,h});content.Offset({(w-paintedW)/2,0,0});}
 void Renderer::draw(float w,float h,float dpi,const std::vector<Line>& lines,bool animate,bool highContrast,const std::vector<Mark>& marks,std::shared_ptr<const Artwork> artwork) {
     float scale=dpi/96.f;
@@ -90,6 +91,7 @@ void Renderer::draw(float w,float h,float dpi,const std::vector<Line>& lines,boo
             }
             brush->SetOpacity(.065f);dc->FillRoundedRectangle(D2D1::RoundedRect({x,y,x+s,y+s},16,16),brush.get());
             brush->SetOpacity(.12f);ellipse(.5f,.5f,.34f);ellipse(.5f,.5f,.25f);brush->SetOpacity(.75f);ellipse(.5f,.5f,.07f);break;
+        case Glyph::AppleMusic:brush->SetOpacity(1);brush->SetColor(highContrast?color(fg):D2D1::ColorF(.98f,.18f,.34f));dc->FillRoundedRectangle(D2D1::RoundedRect({x,y,x+s,y+s},s*.23f,s*.23f),brush.get());brush->SetColor(highContrast?color(bg):D2D1::ColorF(1,1,1));x+=s*.2f;y+=s*.17f;s*=.63f;[[fallthrough]];
         case Glyph::Music:stroke(.42f,.75f,.42f,.18f);stroke(.42f,.18f,.8f,.1f);stroke(.8f,.1f,.8f,.64f);ellipse(.28f,.78f,.13f);ellipse(.66f,.68f,.13f);break;
         case Glyph::Play:case Glyph::Pause:
             if(mark.active){dc->FillEllipse(D2D1::Ellipse({x+s/2,y+s/2},s*.85f,s*.85f),brush.get());brush->SetColor(color(bg));}

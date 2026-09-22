@@ -5,13 +5,12 @@
 #include "ui/model.h"
 #include "ui/spring.h"
 namespace delight {
-// Only the rounded region changes per animation frame. HWND bounds change at
-// transition boundaries, never in a continuous resize loop. The actual region
-// is both the visible shell mask and Windows' input boundary.
+// Animate the visible centre and rounded input region together.
+// The canvas envelope stays stable until the transition settles.
 struct WindowGeometry {
     HWND hwnd=nullptr;HMONITOR monitor=nullptr;
     Rect bounds{};Size target{};float dpi=96;
-    Spring width,height;bool applying=false,animating=false,initialized=false;
+    Spring width,height,left,top;bool applying=false,animating=false,initialized=false;
     int alignment=1;
     static double now(){return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();}
     void mask(){
@@ -28,7 +27,7 @@ struct WindowGeometry {
         applying=false;
     }
     void configure(HMONITOR destination,Size requested,int align,bool motion){
-        double time=now();width.sample(time);height.sample(time);
+        double time=now();width.sample(time);height.sample(time);left.sample(time);top.sample(time);
         MONITORINFO info{sizeof(info)};
         if(!GetMonitorInfoW(destination,&info)){destination=MonitorFromWindow(hwnd,MONITOR_DEFAULTTOPRIMARY);GetMonitorInfoW(destination,&info);}
         UINT dx=96,dy=96;GetDpiForMonitor(destination,MDT_EFFECTIVE_DPI,&dx,&dy);
@@ -37,21 +36,21 @@ struct WindowGeometry {
         Rect work{info.rcWork.left,info.rcWork.top,info.rcWork.right-info.rcWork.left,info.rcWork.bottom-info.rcWork.top};
         auto endpoint=place(work,requested,dpi/96,align);
         target={endpoint.w*96.f/dpi,endpoint.h*96.f/dpi};
-        if(changedDisplay||!motion){width.snap(target.w,time);height.snap(target.h,time);animating=false;position(endpoint);}
+        if(changedDisplay||!motion){width.snap(target.w,time);height.snap(target.h,time);animating=false;left.snap(endpoint.x+endpoint.w/2.0,time);top.snap(endpoint.y,time);position(endpoint);}
         else {
-            width.retarget(target.w,time);height.retarget(target.h,time);
-            animating=!width.settled()||!height.settled();
+            left.retarget(endpoint.x+endpoint.w/2.0,time);top.retarget(endpoint.y,time);width.retarget(target.w,time);height.retarget(target.h,time);
+            animating=!width.settled()||!height.settled()||!left.settled()||!top.settled();
             if(animating){
                 Size envelope{std::max({target.w,float(width.position),bounds.w*96.f/dpi}),std::max({target.h,float(height.position),bounds.h*96.f/dpi})};
-                position(place(work,envelope,dpi/96,align));
+                auto frame=place(work,envelope,dpi/96,align);frame.x=int(std::lround(left.position-frame.w/2.0));frame.y=int(top.position);position(frame);
             }else position(endpoint);
         }
         initialized=true;mask();
     }
     bool tick(){
         if(!animating)return false;
-        double time=now();width.sample(time);height.sample(time);mask();
-        if(width.settled()&&height.settled()){
+        double time=now();width.sample(time);height.sample(time);left.sample(time);top.sample(time);auto frame=bounds;frame.x=int(std::lround(left.position-frame.w/2.0));frame.y=int(std::lround(top.position));position(frame);mask();
+        if(width.settled()&&height.settled()&&left.settled()&&top.settled()){
             width.snap(target.w,time);height.snap(target.h,time);animating=false;
             MONITORINFO info{sizeof(info)};if(GetMonitorInfoW(monitor,&info))position(place({info.rcWork.left,info.rcWork.top,info.rcWork.right-info.rcWork.left,info.rcWork.bottom-info.rcWork.top},target,dpi/96,alignment));
             mask();

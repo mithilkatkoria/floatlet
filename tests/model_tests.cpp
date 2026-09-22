@@ -45,6 +45,7 @@ int main() {
         }
     }
     require(place({0,0,2880,1920},sizeFor(State::Collapsed),2).w==448);
+    auto edge=place({-1920,-200,1920,1080},{32,64},1.5f,3);require(edge.x+edge.w==0);require(edge.y>=-200&&edge.y+edge.h<=880);
     require(!cpu(0,0,0)); require(!cpu(20,10,0)); require(cpu(50,70,30).value()==50);
     Motion a; for(int i=0;i<100;++i) { double t=i*.017; float before=a.at(t); a.target(i%2?0.f:1.f,t); require(std::abs(a.at(t)-before)<.0001f); }
     require(pathKey(L"C:/example/")==L"C:\\example");

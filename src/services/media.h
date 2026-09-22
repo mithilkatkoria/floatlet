@@ -8,7 +8,7 @@
 #include <winrt/Windows.Storage.Streams.h>
 #include "artwork.h"
 namespace delight {
-struct MediaSnapshot {std::wstring title=L"No media session",artist=L"Open a player to begin";bool playing=false,play=false,previous=false,next=false;bool spotify=false;std::shared_ptr<const Artwork> artwork;std::wstring source;};
+struct MediaSnapshot {std::wstring title=L"No media session",artist=L"Open a player to begin";bool playing=false,play=false,previous=false,next=false;bool spotify=false;std::shared_ptr<const Artwork> artwork;std::wstring source;bool appleMusic=false;};
 class Media:public std::enable_shared_from_this<Media> {
     std::mutex mutex;
     MediaSnapshot snapshot;
@@ -16,7 +16,7 @@ class Media:public std::enable_shared_from_this<Media> {
     winrt::Windows::Media::Control::GlobalSystemMediaTransportControlsSession session{nullptr};
     winrt::event_token current{},properties{},playback{};
     std::atomic<HWND> hwnd{}; unsigned generation=0;
-    bool decoding=false;
+    bool decoding=false,pendingLookup=false;std::wstring pendingTitle,pendingArtist,pendingSource,lastLookupKey;ULONGLONG lastLookupAt=0;
     unsigned pendingGeneration=0;
     winrt::Windows::Storage::Streams::IRandomAccessStreamReference pendingArt{nullptr};
     winrt::fire_and_forget decodeArtwork();

@@ -35,6 +35,20 @@ int main(){
             }
         }
         for(int cycle=0;cycle<100;++cycle){g.configure(monitors.front(),sizeFor(cycle%2?State::Music:State::Collapsed),1,true);std::this_thread::sleep_for(std::chrono::milliseconds(2));g.tick();require(g.width.position>0&&g.height.position>0);}
+        // Verify actual intermediate movement and a clickable region at both endpoints.
+        for(auto monitor:monitors){
+            g.configure(monitor,{224,36},1,false);const auto original=g.bounds;
+            g.configure(monitor,{32,64},3,true);
+            std::this_thread::sleep_for(std::chrono::milliseconds(35));g.tick();
+            require(g.bounds.x!=original.x||g.bounds.y!=original.y);
+            for(int frame=0;frame<100&&g.animating;++frame){std::this_thread::sleep_for(std::chrono::milliseconds(10));g.tick();}
+            require(!g.animating);MONITORINFO mi{sizeof mi};GetMonitorInfoW(monitor,&mi);
+            require(g.bounds.x+g.bounds.w==mi.rcWork.right);
+            auto region=CreateRectRgn(0,0,0,0);GetWindowRgn(w,region);require(PtInRegion(region,g.bounds.w/2,g.bounds.h/2));DeleteObject(region);
+            g.configure(monitor,{224,36},1,true);
+            for(int frame=0;frame<100&&g.animating;++frame){std::this_thread::sleep_for(std::chrono::milliseconds(10));g.tick();}
+            require(!g.animating);require(g.bounds.x==original.x&&g.bounds.y==original.y);
+        }
         std::cout<<checks<<" real HWND assertions passed; "<<dpiMessages<<" DPI messages observed\n";
         DestroyWindow(w);return 0;
     }catch(const std::exception& e){std::cerr<<e.what()<<" check "<<checks<<"\n";DestroyWindow(w);return 1;}

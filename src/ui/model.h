@@ -55,6 +55,7 @@ inline Rect place(Rect work, Size size, float scale, int alignment = 1) {
     int w = std::min(work.w, static_cast<int>(std::lround(size.w * scale)));
     int h = std::min(work.h, static_cast<int>(std::lround(size.h * scale)));
     int inset = static_cast<int>(std::lround(8 * scale));
+    if(alignment==3)return {work.x+work.w-w,std::clamp(work.y+(work.h-h)/2,work.y,work.y+work.h-h),w,h};
     int x = alignment == 0 ? work.x + inset : alignment == 2 ? work.x + work.w - w - inset : work.x + (work.w-w)/2;
     return {std::clamp(x,work.x,work.x+work.w-w),std::clamp(work.y+inset,work.y,work.y+work.h-h),w,h};
 }

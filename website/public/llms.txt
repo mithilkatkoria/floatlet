@@ -10,3 +10,12 @@
 - [Source](https://github.com/mithilkatkoria/floatlet): MIT license, issues and contributions.
 
 Compatibility: Windows 11 x64 on Intel/AMD; Windows 11 ARM through x64 emulation. No native ARM64 release. Not restricted to Surface. No guaranteed battery savings, zero-resource operation or search rankings. Refer to the download page for the current version.
+
+## Release status
+
+The public download is the version on the download page. Alt+Space Search, the redesigned Search UI, minimize-to-edge refinements and Apple catalogue artwork lookup are development features, not included in 0.6.3. The browser playground includes sample demonstrations of both release and development features.
+
+- [Search development guide](https://floatlet.vercel.app/docs/search/): app priority, Everything integration, actions, shortcuts and limitations.
+- [Changelog](https://floatlet.vercel.app/changelog/): distinguish published releases from work in development.
+
+Calendar subscriptions are read-only, with up to eight Google iCal feeds. Feed publication delays may affect event updates. Caller identity, direct hang-up and Discord deafen are not implemented.
