@@ -10,7 +10,7 @@
 #include <map>
 #include "services/artwork.h"
 namespace delight {
-struct Line { std::wstring text; float x,y,size; bool secondary=false; float width=0; bool centered=false; bool glow=false; };
+struct Line { std::wstring text; float x,y,size; bool secondary=false; float width=0; bool centered=false; bool glow=false; bool mono=false; };
 enum class Glyph { Music, Play, Pause, Previous, Next, Folder, Pin, Plus, More, Disc, Chip, Spotify, Rule, Card, Slider, Close, Speaker, Sun, AirPods, Logo, Gear, Timer, Toggle, Microphone, Wavebar, RoundButton, AlarmBell, Camera, CalendarIcon, Headphones, AppleMusic };
 struct Mark { Glyph glyph; float x,y,size; bool active=false; bool disabled=false; float height=28,value=0; };
 class Renderer {
@@ -32,6 +32,6 @@ public:
     void initialize(HWND hwnd);
     void canvas(float w,float h);
     void roundShell(float width,float height,float scale);
-    void draw(float w,float h,float dpi,const std::vector<Line>& lines,bool animate,bool highContrast,const std::vector<Mark>& marks={},std::shared_ptr<const Artwork> artwork={});
+    void draw(float w,float h,float dpi,const std::vector<Line>& lines,bool animate,bool highContrast,const std::vector<Mark>& marks={},std::shared_ptr<const Artwork> artwork={},bool editorTheme=false);
 };
 }

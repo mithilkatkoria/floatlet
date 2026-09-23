@@ -31,7 +31,7 @@ void Renderer::initialize(HWND hwnd) {
 }
 void Renderer::roundShell(float width,float height,float scale){float w=std::max(1.f,width*scale-2),h=std::max(1.f,height*scale-2);shell.Offset({(canvasW-w)/2,1});shell.Size({w,h});float radius=std::min(h/2,22*scale);shell.CornerRadius({radius,radius});}
 void Renderer::canvas(float w,float h){canvasW=w;canvasH=h;background.Size({w,h});content.Offset({(w-paintedW)/2,0,0});}
-void Renderer::draw(float w,float h,float dpi,const std::vector<Line>& lines,bool animate,bool highContrast,const std::vector<Mark>& marks,std::shared_ptr<const Artwork> artwork) {
+void Renderer::draw(float w,float h,float dpi,const std::vector<Line>& lines,bool animate,bool highContrast,const std::vector<Mark>& marks,std::shared_ptr<const Artwork> artwork,bool editorTheme) {
     float scale=dpi/96.f;
     bool fresh=!surface||surfaceW!=w*scale||surfaceH!=h*scale;
     if(fresh){surfaceW=w*scale;surfaceH=h*scale;surface=graphics.CreateDrawingSurface({surfaceW,surfaceH},Windows::Graphics::DirectX::DirectXPixelFormat::B8G8R8A8UIntNormalized,Windows::Graphics::DirectX::DirectXAlphaMode::Premultiplied);}
@@ -40,8 +40,8 @@ void Renderer::draw(float w,float h,float dpi,const std::vector<Line>& lines,boo
     check_hresult(interop->BeginDraw(nullptr,__uuidof(ID2D1DeviceContext),dc.put_void(),&offset));
     dc->SetDpi(dpi,dpi);
     dc->SetTransform(D2D1::Matrix3x2F::Translation(offset.x/scale,offset.y/scale));
-    auto bg=highContrast?GetSysColor(COLOR_WINDOW):RGB(9,10,12);
-    auto fg=highContrast?GetSysColor(COLOR_WINDOWTEXT):RGB(244,244,242);
+    auto bg=highContrast?GetSysColor(COLOR_WINDOW):editorTheme?RGB(17,21,29):RGB(9,10,12);
+    auto fg=highContrast?GetSysColor(COLOR_WINDOWTEXT):editorTheme?RGB(230,238,245):RGB(244,244,242);
     auto color=[](COLORREF c) {return D2D1::ColorF(GetRValue(c)/255.f,GetGValue(c)/255.f,GetBValue(c)/255.f);};
     dc->Clear(D2D1::ColorF(0,0,0,0));
     if(backgroundColor!=bg){background.Brush(compositor.CreateColorBrush(Windows::UI::Color{255,GetRValue(bg),GetGValue(bg),GetBValue(bg)}));backgroundColor=bg;}
@@ -63,7 +63,7 @@ void Renderer::draw(float w,float h,float dpi,const std::vector<Line>& lines,boo
             winrt::com_ptr<ID2D1Factory> factory;dc->GetFactory(factory.put());winrt::com_ptr<ID2D1PathGeometry> path;check_hresult(factory->CreatePathGeometry(path.put()));winrt::com_ptr<ID2D1GeometrySink> sink;check_hresult(path->Open(sink.put()));sink->BeginFigure({x+s*.18f,y+s*.68f},D2D1_FIGURE_BEGIN_HOLLOW);sink->AddBezier(D2D1::BezierSegment({x+s*.05f,y-s*.03f},{x+s*.95f,y-s*.03f},{x+s*.82f,y+s*.68f}));sink->EndFigure(D2D1_FIGURE_END_OPEN);check_hresult(sink->Close());dc->DrawGeometry(path.get(),brush.get(),1.7f);dc->DrawRoundedRectangle(D2D1::RoundedRect({x+s*.12f,y+s*.48f,x+s*.31f,y+s*.84f},s*.07f,s*.07f),brush.get(),1.7f);dc->DrawRoundedRectangle(D2D1::RoundedRect({x+s*.69f,y+s*.48f,x+s*.88f,y+s*.84f},s*.07f,s*.07f),brush.get(),1.7f);break;}
         case Glyph::Microphone:dc->DrawRoundedRectangle(D2D1::RoundedRect({x+s*.34f,y+s*.1f,x+s*.66f,y+s*.61f},s*.16f,s*.16f),brush.get(),1.7f);stroke(.22f,.43f,.22f,.60f);stroke(.22f,.60f,.35f,.75f);stroke(.35f,.75f,.65f,.75f);stroke(.65f,.75f,.78f,.60f);stroke(.78f,.60f,.78f,.43f);stroke(.5f,.75f,.5f,.91f);stroke(.33f,.91f,.67f,.91f);if(mark.active)stroke(.08f,.12f,.92f,.9f);break;
         case Glyph::Gear:ellipse(.5f,.5f,.26f);ellipse(.5f,.5f,.09f);for(int i=0;i<8;++i){float a=i*3.14159265f/4;stroke(.5f+.28f*cosf(a),.5f+.28f*sinf(a),.5f+.43f*cosf(a),.5f+.43f*sinf(a));}break;
-        case Glyph::Toggle:brush->SetOpacity(mark.active?1.f:.16f);if(mark.active&&!highContrast)brush->SetColor(D2D1::ColorF(.35f,.62f,.98f));dc->FillRoundedRectangle(D2D1::RoundedRect({x,y,x+s,y+20},10,10),brush.get());brush->SetColor(color(fg));brush->SetOpacity(1);dc->FillEllipse(D2D1::Ellipse({x+(mark.active?s-10:10),y+10},7,7),brush.get());break;
+        case Glyph::Toggle:brush->SetOpacity(mark.active?1.f:.16f);if(mark.active&&!highContrast)brush->SetColor(editorTheme?D2D1::ColorF(.36f,.78f,.68f):D2D1::ColorF(.35f,.62f,.98f));dc->FillRoundedRectangle(D2D1::RoundedRect({x,y,x+s,y+20},10,10),brush.get());brush->SetColor(color(fg));brush->SetOpacity(1);dc->FillEllipse(D2D1::Ellipse({x+(mark.active?s-10:10),y+10},7,7),brush.get());break;
         case Glyph::Timer:{brush->SetOpacity(.16f);ellipse(.5f,.5f,.42f);brush->SetOpacity(1);if(!highContrast)brush->SetColor(D2D1::ColorF(1.f,.64f,.28f));float fraction=std::clamp(mark.value,0.f,1.f);
             if(fraction>=.9999f)dc->DrawEllipse(D2D1::Ellipse({x+s*.5f,y+s*.5f},s*.42f,s*.42f),brush.get(),std::max(2.f,s*.045f));
             else if(fraction>0){winrt::com_ptr<ID2D1Factory> f;dc->GetFactory(f.put());winrt::com_ptr<ID2D1PathGeometry> path;check_hresult(f->CreatePathGeometry(path.put()));winrt::com_ptr<ID2D1GeometrySink> sink;check_hresult(path->Open(sink.put()));sink->BeginFigure({x+s*.5f,y+s*.08f},D2D1_FIGURE_BEGIN_HOLLOW);float a=-1.5707963f+6.2831853f*fraction;sink->AddArc(D2D1::ArcSegment({x+s*(.5f+.42f*cosf(a)),y+s*(.5f+.42f*sinf(a))},{s*.42f,s*.42f},0,D2D1_SWEEP_DIRECTION_CLOCKWISE,fraction>.5f?D2D1_ARC_SIZE_LARGE:D2D1_ARC_SIZE_SMALL));sink->EndFigure(D2D1_FIGURE_END_OPEN);check_hresult(sink->Close());dc->DrawGeometry(path.get(),brush.get(),std::max(2.f,s*.045f));}break;}
@@ -72,14 +72,14 @@ void Renderer::draw(float w,float h,float dpi,const std::vector<Line>& lines,boo
         case Glyph::CalendarIcon:dc->DrawRoundedRectangle(D2D1::RoundedRect({x+s*.12f,y+s*.2f,x+s*.88f,y+s*.88f},s*.08f,s*.08f),brush.get(),1.6f);stroke(.12f,.4f,.88f,.4f);stroke(.32f,.1f,.32f,.3f);stroke(.68f,.1f,.68f,.3f);stroke(.3f,.59f,.45f,.59f);stroke(.55f,.72f,.7f,.72f);break;
         case Glyph::Wavebar:{if(!highContrast)brush->SetColor(D2D1::ColorF(.53f,.48f,.72f));float barHeight=std::max(2.f,std::min(12.f,mark.height)*std::clamp(mark.value,0.f,1.f));dc->FillRoundedRectangle(D2D1::RoundedRect({x,y+(mark.height-barHeight)/2,x+s,y+(mark.height+barHeight)/2},s/2,s/2),brush.get());break;}
         case Glyph::RoundButton:{if(!highContrast)brush->SetColor(mark.active?D2D1::ColorF(.16f,.46f,.29f):D2D1::ColorF(.22f,.23f,.24f));brush->SetOpacity(.6f);dc->FillEllipse(D2D1::Ellipse({x+s/2,y+s/2},s/2,s/2),brush.get());brush->SetOpacity(.35f);dc->DrawEllipse(D2D1::Ellipse({x+s/2,y+s/2},s/2-3,s/2-3),brush.get(),1);break;}
-        case Glyph::Card:brush->SetOpacity(highContrast?.18f:.055f);dc->FillRoundedRectangle(D2D1::RoundedRect({x,y,x+s,y+mark.height},12,12),brush.get());break;
+        case Glyph::Card:if(editorTheme&&!highContrast){brush->SetColor(D2D1::ColorF(.12f,.16f,.21f));brush->SetOpacity(.95f);}else brush->SetOpacity(highContrast?.18f:.055f);dc->FillRoundedRectangle(D2D1::RoundedRect({x,y,x+s,y+mark.height},10,10),brush.get());break;
         case Glyph::Slider:{brush->SetOpacity(.10f);dc->FillRoundedRectangle(D2D1::RoundedRect({x,y,x+s,y+24},12,12),brush.get());float width=12+(s-24)*std::clamp(mark.value,0.f,1.f);brush->SetOpacity(mark.disabled?.1f:.75f);dc->FillRoundedRectangle(D2D1::RoundedRect({x,y,x+width+12,y+24},12,12),brush.get());brush->SetOpacity(mark.disabled?.3f:1);dc->FillEllipse(D2D1::Ellipse({x+width,y+12},10,10),brush.get());break;}
         case Glyph::Close:stroke(.25f,.25f,.75f,.75f);stroke(.75f,.25f,.25f,.75f);break;
         case Glyph::Speaker:stroke(.15f,.4f,.35f,.4f);stroke(.35f,.4f,.6f,.2f);stroke(.6f,.2f,.6f,.8f);stroke(.6f,.8f,.35f,.6f);stroke(.35f,.6f,.15f,.6f);stroke(.15f,.6f,.15f,.4f);if(mark.active){stroke(.72f,.3f,.95f,.7f);stroke(.95f,.3f,.72f,.7f);}else{stroke(.78f,.3f,.85f,.5f);stroke(.85f,.5f,.78f,.7f);}break;
         case Glyph::Sun:ellipse(.5f,.5f,.18f);for(int a=0;a<8;++a){float angle=a*3.14159265f/4;stroke(.5f+.31f*cosf(angle),.5f+.31f*sinf(angle),.5f+.43f*cosf(angle),.5f+.43f*sinf(angle));}break;
         case Glyph::AirPods:for(float a:{.18f,.65f}){dc->FillEllipse(D2D1::Ellipse({x+s*(a+.08f),y+s*.3f},s*.15f,s*.17f),brush.get());dc->FillRoundedRectangle(D2D1::RoundedRect({x+s*a,y+s*.28f,x+s*(a+.12f),y+s*.86f},s*.05f,s*.05f),brush.get());}break;
         case Glyph::Logo:dc->FillRoundedRectangle(D2D1::RoundedRect({x+s*.08f,y+s*.28f,x+s*.92f,y+s*.72f},s*.22f,s*.22f),brush.get());brush->SetColor(color(bg));dc->FillEllipse(D2D1::Ellipse({x+s*.7f,y+s*.5f},s*.10f,s*.10f),brush.get());break;
-        case Glyph::Chip:brush->SetOpacity(highContrast?.2f:.08f);dc->FillRoundedRectangle(D2D1::RoundedRect({x,y,x+s,y+28},14,14),brush.get());break;
+        case Glyph::Chip:if(editorTheme&&!highContrast){brush->SetColor(mark.active?D2D1::ColorF(.16f,.35f,.34f):D2D1::ColorF(.13f,.18f,.23f));brush->SetOpacity(1);}else brush->SetOpacity(highContrast?.2f:.08f);dc->FillRoundedRectangle(D2D1::RoundedRect({x,y,x+s,y+28},9,9),brush.get());break;
         case Glyph::Disc:
             if(artwork&&artwork->pixels.size()==artwork->width*artwork->height*4){
                 winrt::com_ptr<ID2D1Bitmap> bitmap;
@@ -111,15 +111,16 @@ void Renderer::draw(float w,float h,float dpi,const std::vector<Line>& lines,boo
     }
     brush->SetColor(color(fg));
     for(auto& line:lines) {
-        auto& format=formats[line.size];
-        if(!format){check_hresult(write->CreateTextFormat(L"Segoe UI Variable",nullptr,DWRITE_FONT_WEIGHT_NORMAL,DWRITE_FONT_STYLE_NORMAL,DWRITE_FONT_STRETCH_NORMAL,line.size,L"en-GB",format.put()));
+        auto& format=formats[line.size+(line.mono?1000.f:0.f)];
+        if(!format){check_hresult(write->CreateTextFormat(line.mono?L"Cascadia Code":L"Segoe UI Variable",nullptr,DWRITE_FONT_WEIGHT_NORMAL,DWRITE_FONT_STYLE_NORMAL,DWRITE_FONT_STRETCH_NORMAL,line.size,L"en-GB",format.put()));
         format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
         DWRITE_TRIMMING trim{DWRITE_TRIMMING_GRANULARITY_CHARACTER,0,0};
         com_ptr<IDWriteInlineObject> ellipsis; write->CreateEllipsisTrimmingSign(format.get(),ellipsis.put()); format->SetTrimming(&trim,ellipsis.get());}
         format->SetTextAlignment(line.centered?DWRITE_TEXT_ALIGNMENT_CENTER:DWRITE_TEXT_ALIGNMENT_LEADING);
         brush->SetColor(color(fg));
         if(line.glow&&!highContrast){brush->SetColor(D2D1::ColorF(.78f,.71f,.97f));brush->SetOpacity(.07f);for(auto shift:{-1.f,1.f})dc->DrawTextW(line.text.c_str(),static_cast<UINT32>(line.text.size()),format.get(),D2D1::RectF(line.x+shift,line.y+shift,line.x+line.width+shift,line.y+line.size*1.6f+shift),brush.get());}
-        brush->SetOpacity(line.secondary?.62f:1.f);
+        if(editorTheme&&line.mono&&!highContrast)brush->SetColor(D2D1::ColorF(.42f,.82f,.73f));
+        brush->SetOpacity(line.secondary?.72f:1.f);
         dc->DrawTextW(line.text.c_str(),static_cast<UINT32>(line.text.size()),format.get(),D2D1::RectF(line.x,line.y,line.width>0?line.x+line.width:w-18,line.y+line.size*1.6f),brush.get(),D2D1_DRAW_TEXT_OPTIONS_CLIP);
     }
     check_hresult(interop->EndDraw());
