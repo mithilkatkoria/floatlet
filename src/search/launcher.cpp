@@ -6,6 +6,7 @@
 #include "placement.h"
 #include "ui/monitor_follow.h"
 #include "indexed_fallback.h"
+#include "local_index.h"
 #include <winrt/Windows.UI.ViewManagement.h>
 #include "platform/shelf.h"
 #include <unordered_set>
@@ -33,7 +34,7 @@ struct Launcher::Impl {
     std::optional<std::pair<unsigned,std::wstring>> pending;
     std::vector<Result> delivered;unsigned deliveredGeneration=0;
     std::atomic<unsigned> stage=0,generation=0;bool stop=false,loaded=false,review=false,navigated=false;std::wstring providerStatus,deliveredStatus,queryText;
-    std::thread worker;UINT dpi=96;Options options;ULONGLONG catalogueTime=0;
+    std::unique_ptr<LocalIndex> localIndex;std::thread worker;UINT dpi=96;Options options;ULONGLONG catalogueTime=0;
     Impl(HWND parent,std::vector<Result> c,std::function<void(int)> run,std::function<bool(const std::wstring&)> shelf):owner(parent),commands(std::move(c)),execute(std::move(run)),add(std::move(shelf)) {
         WNDCLASSW cls{};cls.hInstance=GetModuleHandleW(nullptr);cls.lpfnWndProc=proc;cls.lpszClassName=L"Floatlet.Search";cls.hCursor=LoadCursorW(nullptr,IDC_ARROW);RegisterClassW(&cls);
         review=(GetWindowLongPtrW(owner,GWL_EXSTYLE)&WS_EX_APPWINDOW)!=0;
@@ -48,9 +49,10 @@ struct Launcher::Impl {
         auto button=[&](const wchar_t* title,int id){return CreateWindowExW(0,L"BUTTON",title,WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_OWNERDRAW,0,0,0,0,hwnd,reinterpret_cast<HMENU>(INT_PTR(id)),cls.hInstance,nullptr);};
         openButton=button(L"Open  \u21b5",403);addButton=button(L"Add to Floatlet",404);actionButton=button(L"Actions  \u21e5",405);
         BOOL dark=TRUE;DwmSetWindowAttribute(hwnd,20,&dark,sizeof dark);DWORD corner=2;DwmSetWindowAttribute(hwnd,33,&corner,sizeof corner);
+        localIndex=std::make_unique<LocalIndex>([this]{PostMessageW(hwnd,WM_APP+81,0,0);});
         worker=std::thread([this]{work();});
     }
-    ~Impl(){hide(false);{std::lock_guard lock(mutex);stop=true;}wake.notify_one();worker.join();DestroyWindow(hwnd);DeleteObject(inputFont);DeleteObject(smallFont);DeleteObject(font);DeleteObject(symbolFont);DeleteObject(background);}
+    ~Impl(){hide(false);{std::lock_guard lock(mutex);stop=true;}wake.notify_one();worker.join();localIndex.reset();DestroyWindow(hwnd);DeleteObject(inputFont);DeleteObject(smallFont);DeleteObject(font);DeleteObject(symbolFont);DeleteObject(background);}
     bool catalogue(unsigned expected){
         std::vector<Result> discovered;
         winrt::com_ptr<IShellItem> folder;
@@ -62,10 +64,10 @@ struct Launcher::Impl {
         if(expected!=generation.load())return false;apps=std::move(discovered);catalogueTime=GetTickCount64();return true;
     }
     void work(){winrt::init_apartment(winrt::apartment_type::single_threaded);{Everything everything;Icons icons;struct CachedFiles{std::wstring query;ULONGLONG time;std::vector<Result> results;};std::vector<CachedFiles> cache;for(;;){std::pair<unsigned,std::wstring> request;Options config;{std::unique_lock lock(mutex);stage=0;wake.wait(lock,[&]{return stop||pending.has_value();});if(stop)break;request=std::move(*pending);pending.reset();config=options;}
-        try{std::vector<Result> results;stage=2;
+        try{std::wstring localStatus=L"Floatlet built-in file index";std::vector<Result> results;stage=2;
         for(auto* source:{&commands,&apps})for(auto r:*source){if(source==&apps&&!config.applications)break;if(request.first!=generation.load())break;r.score=rank(r,request.second,config.fuzzy);if(r.score)results.push_back(std::move(r));}
         if(config.windows&&!tokens(request.second).empty())for(auto r:windows()){r.score=rank(r,request.second,config.fuzzy);if(r.score)results.push_back(std::move(r));}
-        auto publish=[&]{sort(results);{std::lock_guard lock(mutex);if(request.first!=generation.load())return;delivered=results;deliveredGeneration=request.first;deliveredStatus=everything.status;}PostMessageW(hwnd,Ready,0,0);};
+        auto publish=[&]{sort(results);{std::lock_guard lock(mutex);if(request.first!=generation.load())return;delivered=results;deliveredGeneration=request.first;deliveredStatus=config.provider==1?localStatus:everything.status;}PostMessageW(hwnd,Ready,0,0);};
         publish();
         if(config.applications&&(!loaded||GetTickCount64()-catalogueTime>=300000)){
             stage=1;loaded=catalogue(request.first);
@@ -73,7 +75,8 @@ struct Launcher::Impl {
             for(auto r:apps){if(request.first!=generation.load())break;r.score=rank(r,request.second,config.fuzzy);if(r.score)results.push_back(std::move(r));}publish();
         }
         stage=5;for(size_t i=0;i<std::min(size_t(12),results.size())&&request.first==generation.load();++i)icons.fill(results[i]);if(request.first==generation.load())publish();
-        if(config.files&&!tokens(request.second).empty()&&request.first==generation.load()){
+        if(config.files&&config.provider==1&&!tokens(request.second).empty()&&request.first==generation.load()){stage=4;auto files=localIndex->query(request.second,request.first,generation,localStatus);results.insert(results.end(),std::make_move_iterator(files.begin()),std::make_move_iterator(files.end()));publish();}
+        if(config.files&&config.provider==0&&!tokens(request.second).empty()&&request.first==generation.load()){
             std::unordered_set<std::wstring> seen;for(auto& r:results)seen.insert(r.id);
             auto merge=[&](std::vector<Result> found){for(auto& r:found){if(request.first!=generation.load())break;r.score=rank(r,request.second,config.fuzzy);if(r.score&&seen.insert(r.id).second)results.push_back(std::move(r));}};
             auto hit=std::find_if(cache.begin(),cache.end(),[&](auto& c){return c.query==request.second&&GetTickCount64()-c.time<1000;});
@@ -102,9 +105,9 @@ struct Launcher::Impl {
         }catch(...){if(request.first==generation.load()){{std::lock_guard lock(mutex);delivered.clear();deliveredGeneration=request.first;deliveredStatus=L"A search provider could not finish. Try another query.";}PostMessageW(hwnd,Ready,0,0);}}
     }}winrt::uninit_apartment();}
     void query(){navigated=false;wchar_t text[257]{};GetWindowTextW(edit,text,257);if(queryText!=text){queryText=text;shown.clear();SendMessageW(list,LB_RESETCONTENT,0,0);SetWindowTextW(status,L"Searching on your PC...");updateActions();}auto current=++generation;{std::lock_guard lock(mutex);pending=std::pair(current,std::wstring(text));}wake.notify_one();}
-    void accept(){std::vector<Result> results;{std::lock_guard lock(mutex);if(deliveredGeneration!=generation.load())return;results=std::move(delivered);providerStatus=deliveredStatus;deliveredGeneration=0;}bool sameRows=results.size()==shown.size();if(sameRows)for(size_t i=0;i<results.size();++i)if(results[i].id!=shown[i].id||results[i].title!=shown[i].title||results[i].detail!=shown[i].detail){sameRows=false;break;}if(sameRows&&!results.empty()){shown=std::move(results);InvalidateRect(list,nullptr,FALSE);updateActions();return;}std::wstring selected;int index=int(SendMessageW(list,LB_GETCURSEL,0,0));if(navigated&&index>=0&&index<int(shown.size()))selected=shown[index].id;
+    void accept(){std::vector<Result> results;{std::lock_guard lock(mutex);if(deliveredGeneration!=generation.load())return;results=std::move(delivered);providerStatus=deliveredStatus;deliveredGeneration=0;}bool sameRows=results.size()==shown.size();if(sameRows)for(size_t i=0;i<results.size();++i)if(results[i].id!=shown[i].id||results[i].title!=shown[i].title||results[i].detail!=shown[i].detail){sameRows=false;break;}if(sameRows&&!results.empty()){if(options.provider==1)SetWindowTextW(status,providerStatus.c_str());shown=std::move(results);InvalidateRect(list,nullptr,FALSE);updateActions();return;}std::wstring selected;int index=int(SendMessageW(list,LB_GETCURSEL,0,0));if(navigated&&index>=0&&index<int(shown.size()))selected=shown[index].id;
         if(navigated){std::vector<Result> stable;for(auto& old:shown){auto it=std::find_if(results.begin(),results.end(),[&](auto& r){return r.id==old.id;});if(it!=results.end()){stable.push_back(*it);results.erase(it);}}for(auto& r:results)stable.push_back(std::move(r));results=std::move(stable);}shown=std::move(results);SendMessageW(list,WM_SETREDRAW,FALSE,0);SendMessageW(list,LB_RESETCONTENT,0,0);int select=0;for(size_t i=0;i<shown.size();++i){auto label=shown[i].title+L", "+shown[i].detail;SendMessageW(list,LB_ADDSTRING,0,reinterpret_cast<LPARAM>(label.c_str()));if(shown[i].id==selected)select=int(i);}SendMessageW(list,LB_SETCURSEL,select,0);SendMessageW(list,WM_SETREDRAW,TRUE,0);InvalidateRect(list,nullptr,TRUE);
-        SetWindowTextW(status,shown.empty()?providerStatus.c_str():L"Enter  Open     Shift+Enter  Add to tray     Ctrl+Enter  Collect");updateActions();
+        SetWindowTextW(status,(shown.empty()||options.provider==1)?providerStatus.c_str():L"Enter  Open     Shift+Enter  Add to tray     Ctrl+Enter  Collect");updateActions();
     }
     void updateActions(){int i=int(SendMessageW(list,LB_GETCURSEL,0,0));bool selected=i>=0&&i<int(shown.size());EnableWindow(openButton,selected);EnableWindow(actionButton,selected);EnableWindow(addButton,selected&&(shown[i].kind==Kind::File||shown[i].kind==Kind::Folder));}
     int px(int n)const{return MulDiv(n,int(dpi),96);}
@@ -143,7 +146,7 @@ struct Launcher::Impl {
         if(action==4){auto memory=GlobalAlloc(GMEM_MOVEABLE,(r.target.size()+1)*sizeof(wchar_t));if(!memory)return;auto data=GlobalLock(memory);if(!data){GlobalFree(memory);return;}memcpy(data,r.target.c_str(),(r.target.size()+1)*sizeof(wchar_t));GlobalUnlock(memory);if(OpenClipboard(hwnd)){EmptyClipboard();if(SetClipboardData(CF_UNICODETEXT,memory))memory=nullptr;CloseClipboard();}if(memory){GlobalFree(memory);SetWindowTextW(status,L"The clipboard is busy. Try again.");}else SetWindowTextW(status,L"Path copied.");}
     }
     void actions(){int index=int(SendMessageW(list,LB_GETCURSEL,0,0));if(index<0||index>=int(shown.size()))return;auto menu=CreatePopupMenu();AppendMenuW(menu,MF_STRING,1,L"Open    Enter");auto kind=shown[index].kind;if(kind==Kind::File||kind==Kind::Folder){AppendMenuW(menu,MF_STRING,5,L"Add to Floatlet    Shift+Enter");AppendMenuW(menu,MF_STRING,6,L"Collect and keep searching    Ctrl+Enter");AppendMenuW(menu,MF_STRING,2,L"Reveal in File Explorer");AppendMenuW(menu,MF_STRING,3,L"Copy file");AppendMenuW(menu,MF_STRING,4,L"Copy path");}RECT r;GetWindowRect(hwnd,&r);actionMenu=true;int action=TrackPopupMenu(menu,TPM_RETURNCMD|TPM_NONOTIFY,r.right-px(240),r.bottom-px(52),0,hwnd,nullptr);actionMenu=false;DestroyMenu(menu);if(action)act(action);}
-    bool key(MSG& message){if(message.hwnd!=hwnd&&!IsChild(hwnd,message.hwnd))return false;if(message.message!=WM_KEYDOWN)return false;switch(message.wParam){case VK_ESCAPE:hide(true);return true;case VK_RETURN:if(GetFocus()==actionButton){actions();return true;}if(GetFocus()==addButton){act(5);return true;}act((GetKeyState(VK_SHIFT)&0x8000)?5:(GetKeyState(VK_CONTROL)&0x8000)?6:1);return true;case VK_TAB:if(GetKeyState(VK_SHIFT)&0x8000){SetFocus(GetFocus()==edit?actionButton:GetFocus()==actionButton?addButton:GetFocus()==addButton?openButton:edit);}else actions();return true;case VK_HOME:case VK_END:if(GetFocus()==list){navigated=true;SendMessageW(list,LB_SETCURSEL,message.wParam==VK_HOME?0:std::max(0,int(shown.size())-1),0);updateActions();return true;}return false;case VK_DOWN:case VK_UP:case VK_NEXT:case VK_PRIOR:{navigated=true;int count=int(shown.size()),i=int(SendMessageW(list,LB_GETCURSEL,0,0));int delta=message.wParam==VK_DOWN?1:message.wParam==VK_UP?-1:message.wParam==VK_NEXT?7:-7;if(count)SendMessageW(list,LB_SETCURSEL,std::clamp(i+delta,0,count-1),0);updateActions();return true;}}return false;}
+    bool key(MSG& message){if(message.hwnd!=hwnd&&!IsChild(hwnd,message.hwnd))return false;if(message.message!=WM_KEYDOWN)return false;switch(message.wParam){case 'R':if(GetKeyState(VK_CONTROL)&0x8000){localIndex->refresh(true);query();return true;}return false;case VK_ESCAPE:hide(true);return true;case VK_RETURN:if(GetFocus()==actionButton){actions();return true;}if(GetFocus()==addButton){act(5);return true;}act((GetKeyState(VK_SHIFT)&0x8000)?5:(GetKeyState(VK_CONTROL)&0x8000)?6:1);return true;case VK_TAB:if(GetKeyState(VK_SHIFT)&0x8000){SetFocus(GetFocus()==edit?actionButton:GetFocus()==actionButton?addButton:GetFocus()==addButton?openButton:edit);}else actions();return true;case VK_HOME:case VK_END:if(GetFocus()==list){navigated=true;SendMessageW(list,LB_SETCURSEL,message.wParam==VK_HOME?0:std::max(0,int(shown.size())-1),0);updateActions();return true;}return false;case VK_DOWN:case VK_UP:case VK_NEXT:case VK_PRIOR:{navigated=true;int count=int(shown.size()),i=int(SendMessageW(list,LB_GETCURSEL,0,0));int delta=message.wParam==VK_DOWN?1:message.wParam==VK_UP?-1:message.wParam==VK_NEXT?7:-7;if(count)SendMessageW(list,LB_SETCURSEL,std::clamp(i+delta,0,count-1),0);updateActions();return true;}}return false;}
     static LRESULT CALLBACK editPaint(HWND h,UINT m,WPARAM w,LPARAM l,UINT_PTR id,DWORD_PTR data){
         if(m==WM_NCDESTROY){RemoveWindowSubclass(h,editPaint,id);return DefSubclassProc(h,m,w,l);}
         auto result=DefSubclassProc(h,m,w,l);
@@ -151,7 +154,7 @@ struct Launcher::Impl {
         return result;
     }
     static LRESULT CALLBACK proc(HWND h,UINT m,WPARAM w,LPARAM l){auto p=reinterpret_cast<Impl*>(GetWindowLongPtrW(h,GWLP_USERDATA));if(m==WM_NCCREATE){p=static_cast<Impl*>(reinterpret_cast<CREATESTRUCTW*>(l)->lpCreateParams);SetWindowLongPtrW(h,GWLP_USERDATA,reinterpret_cast<LONG_PTR>(p));}if(!p)return DefWindowProcW(h,m,w,l);
-        switch(m){case WM_TIMER:if(w==92){p->follow();return 0;}if(w==91){float t=std::min(1.f,float(GetTickCount64()-p->animationStart)/160.f);float eased=1-(1-t)*(1-t)*(1-t);SetLayeredWindowAttributes(h,0,BYTE(80+175*eased),LWA_ALPHA);if(t>=1)KillTimer(h,91);}return 0;case WM_COMMAND:if(LOWORD(w)==403)p->act(1);if(LOWORD(w)==404)p->act(5);if(LOWORD(w)==405)p->actions();if(LOWORD(w)==Edit&&HIWORD(w)==EN_CHANGE)p->query();if(LOWORD(w)==List&&HIWORD(w)==LBN_SELCHANGE){p->navigated=true;p->updateActions();}if(LOWORD(w)==List&&HIWORD(w)==LBN_DBLCLK)p->open();return 0;case Ready:p->accept();return 0;case WM_ACTIVATE:if(!p->review&&!p->actionMenu&&LOWORD(w)==WA_INACTIVE)p->hide(false);return 0;case WM_CLOSE:p->hide(true);return 0;case WM_SETTINGCHANGE:p->layout();InvalidateRect(h,nullptr,TRUE);return 0;case WM_DISPLAYCHANGE:{KillTimer(h,92);p->follower.reset();if(IsWindowVisible(h)&&GetSystemMetrics(SM_CMONITORS)>1)SetCoalescableTimer(h,92,120,nullptr,30);POINT point{};GetCursorPos(&point);p->placeOn(MonitorFromPoint(point,MONITOR_DEFAULTTONEAREST));return 0;}case WM_DPICHANGED:{if(p->placing)return 0;auto r=reinterpret_cast<RECT*>(l);SetWindowPos(h,nullptr,r->left,r->top,r->right-r->left,r->bottom-r->top,SWP_NOZORDER|SWP_NOACTIVATE);p->layout();return 0;}
+        switch(m){case WM_TIMER:if(w==92){p->follow();return 0;}if(w==91){float t=std::min(1.f,float(GetTickCount64()-p->animationStart)/160.f);float eased=1-(1-t)*(1-t)*(1-t);SetLayeredWindowAttributes(h,0,BYTE(80+175*eased),LWA_ALPHA);if(t>=1)KillTimer(h,91);}return 0;case WM_COMMAND:if(LOWORD(w)==403)p->act(1);if(LOWORD(w)==404)p->act(5);if(LOWORD(w)==405)p->actions();if(LOWORD(w)==Edit&&HIWORD(w)==EN_CHANGE)p->query();if(LOWORD(w)==List&&HIWORD(w)==LBN_SELCHANGE){p->navigated=true;p->updateActions();}if(LOWORD(w)==List&&HIWORD(w)==LBN_DBLCLK)p->open();return 0;case WM_APP+81:if(IsWindowVisible(h))p->query();return 0;case Ready:p->accept();return 0;case WM_ACTIVATE:if(!p->review&&!p->actionMenu&&LOWORD(w)==WA_INACTIVE)p->hide(false);return 0;case WM_CLOSE:p->hide(true);return 0;case WM_SETTINGCHANGE:p->layout();InvalidateRect(h,nullptr,TRUE);return 0;case WM_DISPLAYCHANGE:{KillTimer(h,92);p->follower.reset();if(IsWindowVisible(h)&&GetSystemMetrics(SM_CMONITORS)>1)SetCoalescableTimer(h,92,120,nullptr,30);POINT point{};GetCursorPos(&point);p->placeOn(MonitorFromPoint(point,MONITOR_DEFAULTTONEAREST));return 0;}case WM_DPICHANGED:{if(p->placing)return 0;auto r=reinterpret_cast<RECT*>(l);SetWindowPos(h,nullptr,r->left,r->top,r->right-r->left,r->bottom-r->top,SWP_NOZORDER|SWP_NOACTIVATE);p->layout();return 0;}
         case WM_ERASEBKGND:{RECT r;GetClientRect(h,&r);FillRect(reinterpret_cast<HDC>(w),&r,p->background);return 1;}
         case WM_CTLCOLOREDIT:case WM_CTLCOLORSTATIC:case WM_CTLCOLORLISTBOX:SetTextColor(reinterpret_cast<HDC>(w),p->textColor);SetBkColor(reinterpret_cast<HDC>(w),p->surface);return reinterpret_cast<LRESULT>(p->background);
         case WM_DRAWITEM:{auto d=reinterpret_cast<DRAWITEMSTRUCT*>(l);auto rect=d->rcItem;float scale=p->dpi/96.f,wid=float(rect.right-rect.left),height=float(rect.bottom-rect.top);auto& paint=p->painter;try{paint.begin(d->hDC,rect);paint.clear(p->surface);
@@ -172,7 +175,7 @@ Launcher::Launcher(HWND owner,std::vector<Result> commands,std::function<void(in
 Launcher::~Launcher()=default;
 void Launcher::show(){impl->show();}
 void Launcher::dismiss(){impl->hide(false);std::lock_guard lock(impl->mutex);impl->pending.reset();}
-void Launcher::configure(Options options){{std::lock_guard lock(impl->mutex);impl->options=options;}if(!options.enabled)dismiss();else if(IsWindowVisible(impl->hwnd))impl->query();}
+void Launcher::configure(Options options){bool local=options.enabled&&options.files&&options.provider==1;impl->localIndex->configure(local,local?LocalIndex::locations(options.scope):std::vector<std::wstring>{},local?LocalIndex::cacheFile(options.scope):std::filesystem::path{});{std::lock_guard lock(impl->mutex);impl->options=options;}if(!options.enabled)dismiss();else if(IsWindowVisible(impl->hwnd))impl->query();}
 std::string Launcher::diagnostics()const{return "generation="+std::to_string(impl->generation.load())+" stage="+std::to_string(impl->stage.load());}
 bool Launcher::translate(MSG& message){return impl->key(message);}
 }

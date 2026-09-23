@@ -4,7 +4,7 @@ Floatlet Search is being added to the existing native C++ Windows app. This bran
 
 ## Opening Search
 
-The default shortcut is Alt+Space. Floatlet uses RegisterHotKey and does not take a shortcut away from another launcher. If Flow Launcher already owns it, open Floatlet Search from the island context menu or notification-area menu. Choose Search preferences to assign another modified key or disable Search.
+The default shortcut is Alt+Space. Legacy either-side shortcuts use RegisterHotKey and report conflicts. The recorder distinguishes Left and Right Alt, Ctrl and Shift. A side-specific shortcut uses a small keyboard hook that only consumes the configured chord, suppresses repeats and passes other keys through. It does not record typing. Windows-reserved chords are excluded. If Flow Launcher already owns it, open Floatlet Search from the island context menu or notification-area menu. Choose Search preferences, then Record shortcut, hold the modifiers and press the final key. Escape cancels recording, and Save applies it. Use Right Alt + Space is also available as a preset. Right Alt is treated as AltGr on layouts that synthesize Left Ctrl. A side-specific shortcut can still conflict with another app using that exact chord; choose a distinct chord in that case.
 
 Search preferences are also linked from the island Preferences panel. Applications, indexed files and folders, open windows, and approximate spelling can be enabled separately. Queries and search history are not saved to disk or sent to a server. The connection section checks Everything on demand and offers Start Everything only when an installed executable is found and no compatible IPC window is present. It never starts or installs Everything automatically. Portable and custom instances may need to be started manually.
 
@@ -24,15 +24,22 @@ Adding to Floatlet uses the existing tray and its storage limits. It keeps a ref
 
 ## File providers
 
-Everything is the primary provider. Floatlet communicates through the documented Unicode WM_COPYDATA protocol with fixed-width fields. There is no Everything DLL dependency and no duplicated filesystem index. Floatlet does not change Everything settings, restart it, or automatically install it.
+Search preferences has two engines:
 
-If the Everything IPC window is absent, the app attempts a bounded query against the existing Windows Search index. Its coverage depends on Windows indexing settings. Neither provider searches unindexed locations by recursively crawling drives. Cloud-only and offline items may be indexed but still unavailable to open.
+- **Everything** preserves the existing IPC integration and Windows Search fallback. Floatlet does not change Everything settings, start it automatically or install it. Windows Search coverage depends on Windows indexing settings.
+- **Floatlet built-in** is an independent filename index. It does not require Everything or Windows Search. Choose Personal folders (Desktop, Documents, Downloads, Pictures, Music and Videos) or Local fixed drives. The initial scan starts with the first non-empty search. Cached filename metadata is stored under the current user's LocalAppData/DelightIsland directory, never in the repository. File contents and queries are not cached.
+
+The built-in engine uses a low-priority worker, a 16 MiB metadata budget and a maximum of 100,000 items. A rebuild can temporarily retain the old and new snapshots together. These are index limits, not a limit for the entire app's RAM. The status line reports a reached limit, including after a cached restart. Use Everything for larger collections. It excludes network roots, does not follow linked/reparse subfolders, skips inaccessible locations and limits traversal depth. Cloud-only files may be listed without being available offline.
+
+Directory-name notifications determine whether another scan is needed. On searches, updates are checked at most once per two minutes. No periodic scan runs when idle. Ctrl+R explicitly refreshes the built-in index. A cache written within the last two minutes opens without a full rebuild. An older cache is shown immediately while a scan updates it. A refresh runs in the background, then updates the visible results; it is not an instantaneous filesystem journal. Switching away cancels the scan and releases the index and notification handles. Deleted results are filtered before display. Exact filename/path token matches work in built-in mode; file typo recovery remains an Everything feature. Application typo matching remains available in either mode.
+
+Everything's specialized index can cover huge drives faster. The built-in engine is a bounded, dependency-free option, not a claim of equal whole-drive indexing performance.
 
 Approximate spelling uses bounded candidate retrieval followed by local edit-distance matching. It is not a promise to recover every typo across an entire filesystem.
 
 ## Resource controls
 
-Search has one worker, coalesces pending queries, and discards outdated results. Filename matches appear before ancestor-path expansion. Background IPC waits are bounded at ten seconds and stop when a newer query supersedes them. Search dismisses and cancels queued work when Windows locks, sleeps, or turns the display off. The worker sleeps when there is no request. Rendering is driven by window events; the opening fade ends after 160 ms and is disabled with reduced motion or Windows animation settings.
+Search has a query worker and a dormant built-in index worker, coalesces pending queries, and discards outdated results. Filename matches appear before ancestor-path expansion. Background IPC waits are bounded at ten seconds and stop when a newer query supersedes them. Search dismisses and cancels queued work when Windows locks, sleeps, or turns the display off. The worker sleeps when there is no request. Rendering is driven by window events; the opening fade ends after 160 ms and is disabled with reduced motion or Windows animation settings.
 
 The application catalogue is capped at 4,096 entries and refreshed on a later query after five minutes, without an idle polling timer. Visible result lists are capped at 80. File queries request at most 512 records at a time. The in-memory repeated-query cache has at most eight entries, a one-second lifetime, and a 128 KiB limit per entry. The icon cache is capped at 96 entries. File icons use file-type metadata rather than reading file contents or downloading thumbnails.
 
@@ -54,3 +61,12 @@ ARM64 source compatibility is intended, but the current local compiler installat
 - [Windows hotkeys](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerhotkey)
 - [Windows Shell activation](https://learn.microsoft.com/en-us/windows/win32/shell/launch)
 - [Windows Search SQL](https://learn.microsoft.com/en-us/windows/win32/search/-search-sql-windowssearch-entry)
+
+## Built-in provider verification (2026-09-23)
+
+Seven CTest suites passed, including 126 checks for local search and modifier matching. The disposable fixture covers Unicode filenames, parent-path search, renamed/deleted originals, corrupt cache recovery, cancellation, switching the provider off, and persistent settings. A 3,000-file fixture averaged 2.5 ms per cached query over 100 queries on this machine. A personal-folder audit reached the 100,000-item cap in 29 to 38 seconds and averaged 3.28 to 4.69 ms per warm query. A fresh restart loaded the cache in 765 ms. These figures are from an x64 build under emulation on one computer. This is not a full-drive benchmark or battery measurement.
+
+The `--search-settings-review` mode opens isolated review preferences for keyboard and visual checks. It does not edit normal user settings.
+
+- [Directory change notifications](https://learn.microsoft.com/en-us/windows/win32/fileio/obtaining-directory-change-notifications)
+- [Low-level keyboard hooks](https://learn.microsoft.com/en-us/windows/win32/winmsg/lowlevelkeyboardproc)

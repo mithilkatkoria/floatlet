@@ -16,6 +16,9 @@ int main(){
         save(file,s);auto restored=load(file);require(restored.paths==s.paths&&restored.touch&&restored.alignment==2&&!restored.followPointer&&restored.iconOnly);
         s.search.enabled=false;s.search.applications=false;s.search.files=false;s.search.windows=false;s.search.fuzzy=false;s.search.key='F';s.search.modifiers=MOD_CONTROL|MOD_SHIFT;
         save(file,s);restored=load(file);require(!restored.search.enabled&&!restored.search.applications&&!restored.search.files&&!restored.search.windows&&!restored.search.fuzzy);require(restored.search.key=='F'&&restored.search.modifiers==(MOD_CONTROL|MOD_SHIFT));
+        s.search.provider=1;s.search.scope=1;s.search.sides=2;s.search.key=VK_SPACE;s.search.modifiers=MOD_ALT;
+        save(file,s);restored=load(file);require(restored.search.provider==1&&restored.search.scope==1&&restored.search.sides==2&&restored.search.key==VK_SPACE);
+        s.search.sides=0;
         for(auto shortcut:{std::pair<unsigned,unsigned>{VK_F12,MOD_ALT},{VK_TAB,MOD_ALT},{'F',0},{256,MOD_CONTROL},{'F',8}}){s.search.key=shortcut.first;s.search.modifiers=shortcut.second;save(file,s);restored=load(file);require(restored.search.key==VK_SPACE&&restored.search.modifiers==MOD_ALT);}
         {std::ofstream out(file);out<<"{bad";}bool bad=false;try{load(file);}catch(...){bad=true;}require(bad);
         {std::ofstream out(file);out<<"{\"version\":2}";}bad=false;try{load(file);}catch(...){bad=true;}require(bad);

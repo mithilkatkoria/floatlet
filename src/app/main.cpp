@@ -12,6 +12,7 @@
 #include "ui/model.h"
 #include "search/launcher.h"
 #include "search/preferences.h"
+#include "search/shortcut.h"
 #include "ui/monitor_follow.h"
 #include "ui/renderer.h"
 #include "storage/settings.h"
@@ -54,7 +55,7 @@ struct Writer {
 };
 std::uint64_t value(FILETIME t){return (std::uint64_t(t.dwHighDateTime)<<32)|t.dwLowDateTime;}
 struct App {
-    std::unique_ptr<search::Launcher> launcher;bool searchHotkey=false;
+    std::unique_ptr<search::Launcher> launcher;search::Shortcut searchShortcut;bool searchHotkey=false;
     HWND hwnd=nullptr,previousFocus=nullptr;Model model;Settings settings;std::unique_ptr<Writer> writer;
     std::wstring notice,noticeDetail=L"Floatlet";CalendarReminders reminders;Glyph noticeGlyph=Glyph::Camera;ULONGLONG noticeUntil=0;std::array<float,9> levels{};bool visualTicking=false;
     Audio* audio=nullptr;std::unique_ptr<SystemControls> system;ControlSnapshot controls;Calendar calendar;
@@ -246,12 +247,12 @@ struct App {
     void dismissTimeAlert(){bool wasRinging=alarm.ringing||countdown.finished;chime.stop();alarm.ringing=false;if(countdown.finished)countdown.cancel();syncTimeTick();if(wasRinging)popNotice(L"Alert dismissed",1600,true,Glyph::AlarmBell);}
     void timerTick(){auto now=GetTickCount64();bool timerDone=countdown.tick(now),alarmDone=alarm.tick(std::chrono::system_clock::now());if(timerDone||alarmDone){chime.start();NOTIFYICONDATAW n{sizeof(n)};n.hWnd=hwnd;n.uID=1;n.uFlags=NIF_INFO;n.dwInfoFlags=NIIF_INFO|NIIF_NOSOUND|NIIF_RESPECT_QUIET_TIME;wcscpy_s(n.szInfoTitle,alarmDone?L"Alarm":L"Timer complete");wcscpy_s(n.szInfo,L"Open Clock and press Dismiss to stop the alert.");Shell_NotifyIconW(NIM_MODIFY,&n);popNotice(alarmDone?L"Alarm ringing":L"Timer complete",5000,true,Glyph::AlarmBell);layout();}syncTimeTick();if(model.state==State::Timer||model.state==State::Collapsed||model.state==State::Peek)render();}
     void launchSettings(const wchar_t* uri){auto result=reinterpret_cast<INT_PTR>(ShellExecuteW(hwnd,L"open",uri,nullptr,nullptr,SW_SHOWNORMAL));if(result<=32){message=L"Windows could not open this setting";render();}}
-    void configureSearch(){UnregisterHotKey(hwnd,3);searchHotkey=!review&&settings.search.enabled&&RegisterHotKey(hwnd,3,settings.search.modifiers|MOD_NOREPEAT,settings.search.key);if(launcher){auto options=settings.search;options.reduceMotion=settings.reduceMotion;launcher->configure(options);}}
+    void configureSearch(){searchShortcut.reset();searchHotkey=!review&&searchShortcut.configure(hwnd,settings.search);if(launcher){auto options=settings.search;options.reduceMotion=settings.reduceMotion;launcher->configure(options);}}
     void command(int id){message.clear();if(id>=RevealBase&&id<RevealBase+100){auto index=id-RevealBase;if(index<int(settings.paths.size())){PIDLIST_ABSOLUTE pidl=nullptr;if(SUCCEEDED(SHParseDisplayName(settings.paths[index].c_str(),nullptr,&pidl,0,nullptr))){SHOpenFolderAndSelectItems(pidl,0,nullptr,0);CoTaskMemFree(pidl);}else error(L"Original unavailable. Reference kept.");}return;}
         if(id>=RemoveBase&&id<RemoveBase+100){auto index=id-RemoveBase;if(index<int(settings.paths.size())){settings.paths.erase(settings.paths.begin()+index);shelfOffset=std::clamp(shelfOffset,0,std::max(0,int(settings.paths.size())-3));dirty();render();}return;}
         switch(id){
         case SearchPanel:if(launcher&&settings.search.enabled)launcher->show();else command(SearchPreferences);break;
-        case SearchPreferences:if(auto options=search::Preferences::show(hwnd,settings.search,searchHotkey)){settings.search=*options;configureSearch();dirty();}break;
+        case SearchPreferences:searchShortcut.reset();if(auto options=search::Preferences::show(hwnd,settings.search,searchHotkey)){settings.search=*options;dirty();}configureSearch();break;
         case PreferencesPanel:case SettingsHelp:focus();model.panel(State::Preferences);layout();break;
         case TimerPanel:focus();model.panel(State::Timer);layout();break;
         case Timer1:case Timer5:case Timer10:case Timer25:if(alarm.ringing||countdown.finished)break;timerMinutes=id==Timer1?1:id==Timer5?5:id==Timer10?10:25;if(!countdown.active())countdown.finished=false;render();break;
@@ -354,7 +355,7 @@ struct App {
         case WM_APP+2:if(model.state==State::Collapsed||model.state==State::Peek)layout();else render();return 0;case WM_APP+3:media->command(3);return 0;case WM_APP+4:media->command(4);return 0;
         case Tray:if(l==WM_RBUTTONUP||l==WM_CONTEXTMENU)menu();else if(l==WM_LBUTTONUP)command(minimized||model.state==State::Hidden?Show:Music);return 0;
         case WM_CLOSE:command(Hide);return 0;
-        case WM_DESTROY:launcher.reset();UnregisterHotKey(hwnd,3);RemoveClipboardFormatListener(hwnd);chime.stop();microphone.reset();feed.reset();if(audio){audio->stop();audio->Release();audio=nullptr;}system.reset();captureNotifyWindow=nullptr;if(foregroundHook)UnhookWinEvent(foregroundHook);callbackWindow->store(nullptr);media->stop();try{winrt::Windows::Networking::Connectivity::NetworkInformation::NetworkStatusChanged(networkToken);}catch(...){}RevokeDragDrop(hwnd);if(drop){drop->Release();drop=nullptr;}UnregisterHotKey(hwnd,1);UnregisterHotKey(hwnd,2);WTSUnRegisterSessionNotification(hwnd);if(powerNotify)UnregisterPowerSettingNotification(powerNotify);tray(true);writer->put(settings);PostQuitMessage(0);return 0;
+        case WM_DESTROY:searchShortcut.reset();launcher.reset();UnregisterHotKey(hwnd,3);RemoveClipboardFormatListener(hwnd);chime.stop();microphone.reset();feed.reset();if(audio){audio->stop();audio->Release();audio=nullptr;}system.reset();captureNotifyWindow=nullptr;if(foregroundHook)UnhookWinEvent(foregroundHook);callbackWindow->store(nullptr);media->stop();try{winrt::Windows::Networking::Connectivity::NetworkInformation::NetworkStatusChanged(networkToken);}catch(...){}RevokeDragDrop(hwnd);if(drop){drop->Release();drop=nullptr;}UnregisterHotKey(hwnd,1);UnregisterHotKey(hwnd,2);WTSUnRegisterSessionNotification(hwnd);if(powerNotify)UnregisterPowerSettingNotification(powerNotify);tray(true);writer->put(settings);PostQuitMessage(0);return 0;
         }return DefWindowProcW(hwnd,msg,w,l);
     }
 };
@@ -362,7 +363,8 @@ LRESULT CALLBACK proc(HWND hwnd,UINT msg,WPARAM w,LPARAM l){auto app=reinterpret
 }
 int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR args,int){
     bool searchReview=args&&wcscmp(args,L"--search-review")==0;
-    bool review=searchReview||(args&&wcscmp(args,L"--review")==0);
+    bool preferencesReview=args&&wcscmp(args,L"--search-settings-review")==0;
+    bool review=preferencesReview||searchReview||(args&&wcscmp(args,L"--review")==0);
     if(args&&(wcscmp(args,L"--quit")==0||wcscmp(args,L"--quit-review")==0)){if(auto h=FindWindowW(wcscmp(args,L"--quit-review")==0?L"DelightIsland.Review":L"DelightIsland.Window",nullptr))PostMessageW(h,WM_APP+12,0,0);return 0;}
     HANDLE single=CreateMutexW(nullptr,FALSE,review?L"Local\\DelightIsland.Review":L"Local\\DelightIsland.0.1");if(!single)return 1;if(GetLastError()==ERROR_ALREADY_EXISTS){CloseHandle(single);return 0;}
     HRESULT ole=OleInitialize(nullptr);if(FAILED(ole)){CloseHandle(single);return 2;}
@@ -390,7 +392,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR args,int){
         WTSRegisterSessionNotification(hwnd,NOTIFY_FOR_THIS_SESSION);app.powerNotify=RegisterPowerSettingNotification(hwnd,&GUID_CONSOLE_DISPLAY_STATE,DEVICE_NOTIFY_WINDOW_HANDLE);
         app.callbackWindow->store(hwnd);auto destination=app.callbackWindow;
         app.networkToken=winrt::Windows::Networking::Connectivity::NetworkInformation::NetworkStatusChanged([destination](auto&&){if(auto window=destination->load())PostMessageW(window,WM_APP+2,0,0);});
-        if(!review)AddClipboardFormatListener(hwnd);captureNotifyWindow=hwnd;app.foregroundHook=SetWinEventHook(EVENT_SYSTEM_FOREGROUND,EVENT_SYSTEM_FOREGROUND,nullptr,foregroundChanged,0,0,WINEVENT_OUTOFCONTEXT);app.tray();app.layout();if(review){app.settings.followPointer=false;app.command(Controls);app.model.pinned=true;}if(searchReview)app.launcher->show();MSG msg;while(GetMessageW(&msg,nullptr,0,0)>0){if(app.launcher&&app.launcher->translate(msg))continue;TranslateMessage(&msg);DispatchMessageW(&msg);}app.renderer.reset();app.media.reset();
+        if(!review)AddClipboardFormatListener(hwnd);captureNotifyWindow=hwnd;app.foregroundHook=SetWinEventHook(EVENT_SYSTEM_FOREGROUND,EVENT_SYSTEM_FOREGROUND,nullptr,foregroundChanged,0,0,WINEVENT_OUTOFCONTEXT);app.tray();app.layout();if(review){app.settings.followPointer=false;app.command(Controls);app.model.pinned=true;}if(searchReview)app.launcher->show();if(preferencesReview){if(auto chosen=search::Preferences::show(nullptr,app.settings.search,false)){app.settings.search=*chosen;app.configureSearch();app.dirty();}}MSG msg;while(GetMessageW(&msg,nullptr,0,0)>0){if(app.launcher&&app.launcher->translate(msg))continue;TranslateMessage(&msg);DispatchMessageW(&msg);}app.renderer.reset();app.media.reset();
     }catch(const winrt::hresult_error& e){MessageBoxW(nullptr,e.message().c_str(),L"Floatlet could not start",MB_OK|MB_ICONERROR);result=3;}catch(...){MessageBoxW(nullptr,L"An unexpected startup error occurred.",L"Floatlet",MB_OK|MB_ICONERROR);result=4;}
     OleUninitialize();CloseHandle(single);return result;
 }

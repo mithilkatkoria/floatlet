@@ -1,4 +1,5 @@
 #include "settings.h"
+#include "search/shortcut.h"
 #include "ui/model.h"
 #include <windows.h>
 #include <winrt/Windows.Data.Json.h>
@@ -21,7 +22,10 @@ Settings load(const std::filesystem::path& file) {
     auto search=root.GetNamedObject(L"search",JsonObject());
     s.search.enabled=search.GetNamedBoolean(L"enabled",true);s.search.applications=search.GetNamedBoolean(L"applications",true);s.search.files=search.GetNamedBoolean(L"files",true);s.search.windows=search.GetNamedBoolean(L"windows",true);s.search.fuzzy=search.GetNamedBoolean(L"fuzzy",true);
     auto key=search.GetNamedNumber(L"key",32),modifiers=search.GetNamedNumber(L"modifiers",1);
-    if(key>=1&&key<=255&&key==int(key)&&key!=VK_F12&&modifiers>=1&&modifiers<=7&&modifiers==int(modifiers)&&!(key==VK_TAB&&modifiers==MOD_ALT)){s.search.key=unsigned(key);s.search.modifiers=unsigned(modifiers);}
+    auto sides=search.GetNamedNumber(L"sides",0);
+    if(key>=1&&key<=255&&key==int(key)&&modifiers>=1&&modifiers<=7&&modifiers==int(modifiers)&&sides>=0&&sides<=63&&sides==int(sides)){auto candidate=s.search;candidate.key=unsigned(key);candidate.modifiers=unsigned(modifiers);candidate.sides=unsigned(sides);if(search::validShortcut(candidate))s.search=candidate;}
+    s.search.extended=search.GetNamedBoolean(L"extended",false);
+    s.search.provider=search.GetNamedNumber(L"provider",0)==1?1:0;s.search.scope=search.GetNamedNumber(L"scope",0)==1?1:0;
     auto paths=root.GetNamedArray(L"paths",JsonArray());
     if(paths.Size()>ShelfLimit) throw std::runtime_error("Too many shelf references");
     for(auto&& p:paths) if(!addReference(s,std::wstring(p.GetString()))) throw std::runtime_error("Invalid or duplicate reference");
@@ -39,7 +43,7 @@ void save(const std::filesystem::path& file,const Settings& s) {
     root.Insert(L"followPointer",JsonValue::CreateBooleanValue(s.followPointer));
     root.Insert(L"iconOnly",JsonValue::CreateBooleanValue(s.iconOnly));
     root.Insert(L"reduceMotion",JsonValue::CreateBooleanValue(s.reduceMotion));root.Insert(L"callControls",JsonValue::CreateBooleanValue(s.callControls));
-    JsonObject search;search.Insert(L"enabled",JsonValue::CreateBooleanValue(s.search.enabled));search.Insert(L"applications",JsonValue::CreateBooleanValue(s.search.applications));search.Insert(L"files",JsonValue::CreateBooleanValue(s.search.files));search.Insert(L"windows",JsonValue::CreateBooleanValue(s.search.windows));search.Insert(L"fuzzy",JsonValue::CreateBooleanValue(s.search.fuzzy));search.Insert(L"key",JsonValue::CreateNumberValue(s.search.key));search.Insert(L"modifiers",JsonValue::CreateNumberValue(s.search.modifiers));root.Insert(L"search",search);
+    JsonObject search;search.Insert(L"enabled",JsonValue::CreateBooleanValue(s.search.enabled));search.Insert(L"applications",JsonValue::CreateBooleanValue(s.search.applications));search.Insert(L"files",JsonValue::CreateBooleanValue(s.search.files));search.Insert(L"windows",JsonValue::CreateBooleanValue(s.search.windows));search.Insert(L"fuzzy",JsonValue::CreateBooleanValue(s.search.fuzzy));search.Insert(L"key",JsonValue::CreateNumberValue(s.search.key));search.Insert(L"modifiers",JsonValue::CreateNumberValue(s.search.modifiers));search.Insert(L"provider",JsonValue::CreateNumberValue(s.search.provider));search.Insert(L"scope",JsonValue::CreateNumberValue(s.search.scope));search.Insert(L"sides",JsonValue::CreateNumberValue(s.search.sides));search.Insert(L"extended",JsonValue::CreateBooleanValue(s.search.extended));root.Insert(L"search",search);
     JsonArray paths; for(auto& path:s.paths) paths.Append(JsonValue::CreateStringValue(path)); root.Insert(L"paths",paths);
     std::string raw=winrt::to_string(root.Stringify()); if(raw.size()>1024*1024) throw std::runtime_error("Settings exceed limit");
     std::filesystem::create_directories(file.parent_path()); auto temp=file; temp+=L".tmp";
