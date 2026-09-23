@@ -18,4 +18,13 @@ public:
     void reset(){if(hook){UnhookWindowsHookEx(hook);hook=nullptr;}if(active==this)active=nullptr;if(owner)UnregisterHotKey(owner,3);owner=nullptr;down=false;}
     bool configure(HWND hwnd,const Options& o){reset();if(!o.enabled||!validShortcut(o))return false;owner=hwnd;options=o;if(!o.sides)return RegisterHotKey(hwnd,3,o.modifiers|MOD_NOREPEAT,o.key)!=FALSE;active=this;hook=SetWindowsHookExW(WH_KEYBOARD_LL,keyboard,GetModuleHandleW(nullptr),0);if(!hook)active=nullptr;return hook!=nullptr;}
 };
+class Recorder {
+    HWND owner{};HHOOK hook{};Options options;inline static Recorder* active=nullptr;
+    static LRESULT CALLBACK keyboard(int code,WPARAM message,LPARAM parameter){auto self=active;if(code==HC_ACTION&&self&&GetForegroundWindow()==self->owner){auto key=reinterpret_cast<KBDLLHOOKSTRUCT*>(parameter);if(message==WM_KEYDOWN||message==WM_SYSKEYDOWN){if(key->vkCode==VK_ESCAPE){PostMessageW(self->owner,WM_APP+95,0,0);return 1;}auto sides=normalizeSides(heldSides());Options candidate=self->options;candidate.key=key->vkCode;candidate.sides=sides;candidate.modifiers=sideModifiers(sides);candidate.extended=(key->flags&LLKHF_EXTENDED)!=0;if(validShortcut(candidate)&&!(GetAsyncKeyState(VK_LWIN)&0x8000)&&!(GetAsyncKeyState(VK_RWIN)&0x8000)){PostMessageW(self->owner,WM_APP+94,candidate.key,candidate.sides|(candidate.extended?64:0));return 1;}}}return CallNextHookEx(nullptr,code,message,parameter);}
+public:
+    ~Recorder(){stop();}
+    bool recording() const {return hook!=nullptr;}
+    void stop(){if(hook){UnhookWindowsHookEx(hook);hook=nullptr;}if(active==this)active=nullptr;owner=nullptr;}
+    bool start(HWND hwnd,const Options& current){stop();owner=hwnd;options=current;active=this;hook=SetWindowsHookExW(WH_KEYBOARD_LL,keyboard,GetModuleHandleW(nullptr),0);if(!hook){active=nullptr;owner=nullptr;}return hook!=nullptr;}
+};
 }

@@ -7,13 +7,13 @@
 #include <vector>
 
 namespace delight {
-enum class State { Collapsed, Peek, Music, Shelf, Controls, Timer, Preferences, Call, Agenda, Calendar, Screenshots, Wifi, DragOver, DraggingOut, Hidden, Unavailable };
+enum class State { Collapsed, Peek, Music, Shelf, Controls, Timer, Preferences, SearchPreferences, Call, Agenda, Calendar, Screenshots, Wifi, DragOver, DraggingOut, Hidden, Unavailable };
 enum class Event { Hover, Leave, Open, Escape, Hide, Show, DragEnter, DragLeave, DragStart, DragEnd, Suspend, Resume };
 struct Model {
     State state = State::Collapsed, last = State::Music, returnState = State::Collapsed;
     bool pinned = false;
-    bool expanded() const { return state == State::Music || state == State::Shelf || state == State::Controls || state == State::Calendar || state == State::Screenshots || state == State::Wifi || state == State::Timer || state == State::Preferences || state == State::Agenda || state == State::Call; }
-    void panel(State s) { if (s == State::Music || s == State::Shelf || s == State::Controls || s == State::Calendar || s == State::Screenshots || s == State::Wifi || s == State::Timer || s == State::Preferences || s == State::Agenda || s == State::Call) state = last = s; }
+    bool expanded() const { return state == State::Music || state == State::Shelf || state == State::Controls || state == State::Calendar || state == State::Screenshots || state == State::Wifi || state == State::Timer || state == State::Preferences || state == State::SearchPreferences || state == State::Agenda || state == State::Call; }
+    void panel(State s) { if (s == State::Music || s == State::Shelf || s == State::Controls || s == State::Calendar || s == State::Screenshots || s == State::Wifi || s == State::Timer || s == State::Preferences || s == State::SearchPreferences || s == State::Agenda || s == State::Call) state = last = s; }
     void send(Event e) {
         if (e == Event::Hide) { state = State::Hidden; pinned = false; return; }
         if (e == Event::Suspend) { state = State::Unavailable; return; }
@@ -43,6 +43,7 @@ inline Size sizeFor(State s, bool touch = false) {
     case State::Call: return {344,184};
     case State::Timer: return {344,320};
     case State::Preferences: return {356,380};
+    case State::SearchPreferences: return {356,530};
     case State::Agenda: return {344,328};
     case State::Controls: return {356,354};
     case State::Calendar: return {344,328};
