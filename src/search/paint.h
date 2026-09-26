@@ -17,8 +17,9 @@ struct Paint {
     }
     void clear(COLORREF c){target->Clear(color(c));}
     void round(float x,float y,float w,float h,float radius,COLORREF c){brush->SetColor(color(c));target->FillRoundedRectangle(D2D1::RoundedRect({x,y,x+w,y+h},radius,radius),brush.get());}
-    void text(const std::wstring& text,float x,float y,float w,float h,float size,COLORREF c,bool strong=false){
-        int key=int(size*10)*2+strong;auto& format=formats[key];if(!format){winrt::check_hresult(write->CreateTextFormat(L"Segoe UI Variable",nullptr,strong?DWRITE_FONT_WEIGHT_SEMI_BOLD:DWRITE_FONT_WEIGHT_NORMAL,DWRITE_FONT_STYLE_NORMAL,DWRITE_FONT_STRETCH_NORMAL,size,L"en-GB",format.put()));format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);DWRITE_TRIMMING trim{DWRITE_TRIMMING_GRANULARITY_CHARACTER};winrt::com_ptr<IDWriteInlineObject> ellipsis;write->CreateEllipsisTrimmingSign(format.get(),ellipsis.put());format->SetTrimming(&trim,ellipsis.get());}
+    void outline(float x,float y,float w,float h,float radius,COLORREF c,float width=1){brush->SetColor(color(c));target->DrawRoundedRectangle(D2D1::RoundedRect({x,y,x+w,y+h},radius,radius),brush.get(),width);}
+    void text(const std::wstring& text,float x,float y,float w,float h,float size,COLORREF c,bool strong=false,bool mono=false){
+        int key=int(size*10)*4+int(strong)*2+int(mono);auto& format=formats[key];if(!format){winrt::check_hresult(write->CreateTextFormat(mono?L"Cascadia Code":L"Segoe UI Variable",nullptr,strong?DWRITE_FONT_WEIGHT_SEMI_BOLD:DWRITE_FONT_WEIGHT_NORMAL,DWRITE_FONT_STYLE_NORMAL,DWRITE_FONT_STRETCH_NORMAL,size,L"en-GB",format.put()));format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);DWRITE_TRIMMING trim{DWRITE_TRIMMING_GRANULARITY_CHARACTER};winrt::com_ptr<IDWriteInlineObject> ellipsis;write->CreateEllipsisTrimmingSign(format.get(),ellipsis.put());format->SetTrimming(&trim,ellipsis.get());}
         brush->SetColor(color(c));target->DrawTextW(text.c_str(),UINT32(text.size()),format.get(),{x,y,x+w,y+h},brush.get(),D2D1_DRAW_TEXT_OPTIONS_CLIP);
     }
     void end(){auto hr=target->EndDraw();if(hr==D2DERR_RECREATE_TARGET){brush=nullptr;target=nullptr;}else winrt::check_hresult(hr);}
