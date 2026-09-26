@@ -2,7 +2,7 @@
 
 [![Windows build](https://github.com/mithilkatkoria/floatlet/actions/workflows/build.yml/badge.svg)](https://github.com/mithilkatkoria/floatlet/actions/workflows/build.yml)
 
-A compact Dynamic Island companion for Windows 11. Music, a temporary file tray, quick controls, timers and a calendar above your workspace. Built in C++20 with native Windows composition, without Electron or a bundled browser.
+A compact Dynamic Island companion for Windows 10 and 11. Music, a temporary file tray, quick controls, timers and a calendar above your workspace. Built in C++20 with native Windows composition, without Electron or a bundled browser.
 
 Created by [Mithil Katkoria](https://github.com/mithilkatkoria). Independent open-source software, unaffiliated with Apple, Microsoft or integrated applications.
 
@@ -63,7 +63,7 @@ Zero CPU, RAM or battery use is impossible. `scripts/measure_background.ps1` mea
 
 ## Build and test
 
-Requires Windows 11, Visual Studio 2022 C++ desktop Build Tools, its CMake component and Windows SDK 10.0.26100. The build script downloads no dependencies.
+Requires Windows 10 or 11, Visual Studio 2022 C++ desktop Build Tools, its CMake component and Windows SDK 10.0.26100. The build script downloads no dependencies.
 
 ```powershell
 .\scripts\build.ps1 -Architecture x64

@@ -2,7 +2,7 @@
   "version": "0.6.3",
   "date": "2026-09-13",
   "architecture": "x64",
-  "windows": "Windows 11",
+  "windows": "Windows 10 and 11",
   "url": "https://github.com/mithilkatkoria/floatlet/releases/download/v0.6.3/Floatlet.exe",
   "zipUrl": "https://github.com/mithilkatkoria/floatlet/releases/download/v0.6.3/Floatlet-0.6.3-x64.zip",
   "size": 1063424,
