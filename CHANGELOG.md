@@ -1,12 +1,11 @@
 # Changelog
 
-## Unreleased - Built-in Search and shortcut recording
+## 0.7.0 - Native Search and refreshed island
 
-- Choose Everything or Floatlet's own local filename index in Search preferences.
-- Choose personal folders or local fixed drives, with bounded background indexing and cached metadata.
-- Record an exact Left/Right Alt, Ctrl or Shift shortcut, or select Right Alt + Space.
-- Keep app-first ranking, existing result actions and the Everything integration.
-- Show index coverage limits and support Ctrl+R to refresh.
+- Add the local Search experience, app-first results, customizable shortcut, file actions and optional Everything provider.
+- Add a new Floatlet icon and refine the timer ruler, analog stopwatch and alert animation.
+- Show the microphone app's own icon when Windows exposes its process, including supported call apps.
+- Keep caller identity, answer, deafen and hang-up in the call app because a microphone session does not expose those controls.
 
 ## 0.6.3 - Clearer call controls
 

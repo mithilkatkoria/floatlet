@@ -36,10 +36,30 @@
 #include <atomic>
 #include <sstream>
 #include <iomanip>
+#include <cstring>
 using namespace delight;
 namespace {
 constexpr UINT Tray=WM_APP+1;
 HWND captureNotifyWindow=nullptr;
+std::shared_ptr<const Artwork> processArtwork(DWORD pid){
+    if(!pid)return {};
+    HANDLE process=OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION,FALSE,pid);
+    if(!process)return {};
+    wchar_t path[32768]{};DWORD length=32768;
+    bool found=QueryFullProcessImageNameW(process,0,path,&length)!=FALSE;
+    CloseHandle(process);
+    if(!found)return {};
+    SHFILEINFOW info{};
+    if(!SHGetFileInfoW(path,0,&info,sizeof info,SHGFI_ICON|SHGFI_LARGEICON)||!info.hIcon)return {};
+    constexpr int edge=48;
+    HDC dc=CreateCompatibleDC(nullptr);
+    BITMAPINFO bitmap{};bitmap.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);bitmap.bmiHeader.biWidth=edge;bitmap.bmiHeader.biHeight=-edge;bitmap.bmiHeader.biPlanes=1;bitmap.bmiHeader.biBitCount=32;bitmap.bmiHeader.biCompression=BI_RGB;
+    void* pixels=nullptr;HBITMAP image=dc?CreateDIBSection(dc,&bitmap,DIB_RGB_COLORS,&pixels,nullptr,0):nullptr;
+    std::shared_ptr<Artwork> art;
+    if(image&&pixels){auto previous=SelectObject(dc,image);std::memset(pixels,0,edge*edge*4);if(DrawIconEx(dc,0,0,info.hIcon,edge,edge,0,nullptr,DI_NORMAL)){art=std::make_shared<Artwork>();art->width=edge;art->height=edge;auto first=static_cast<std::uint8_t*>(pixels);art->pixels.assign(first,first+edge*edge*4);}SelectObject(dc,previous);}
+    if(image)DeleteObject(image);if(dc)DeleteDC(dc);DestroyIcon(info.hIcon);
+    return art;
+}
 void CALLBACK foregroundChanged(HWINEVENTHOOK,DWORD,HWND window,LONG,LONG,DWORD,DWORD){if(captureNotifyWindow)PostMessageW(captureNotifyWindow,WM_APP+8,0,reinterpret_cast<LPARAM>(window));}
 enum Command { Show=1,Hide,Quit,Music,Files,Controls,Pin,Add,Touch,Left,Center,Right,OtherMonitor,SettingsHelp,Play,Previous,Next,VolDown,VolUp,Mute,Wifi,Bluetooth,Display,Sound,Power,FollowPointer,IconOnly,TimerPanel,PreferencesPanel,TimerStart,TimerPause,TimerCancel,TimerLess,TimerMore,Timer1,Timer5,Timer10,Timer25,ReduceMotion,CallControls,CallPanel,MicrophoneMute,CalendarConnect,AgendaPanel,CalendarRefresh,StartupSettings,CalendarPanel,ScreenshotsPanel,NightLight,Mirror,WifiSettings,WifiPanel,PreviousMonth,NextMonth,Today,NextYear,DismissAlert,OpenCallApp,SearchPanel,SearchPreferences,MinimizeIsland,RemoveBase=1000,RevealBase=2000 };
 struct Writer {
@@ -59,8 +79,8 @@ struct App {
     HWND hwnd=nullptr,previousFocus=nullptr;Model model;Settings settings;std::unique_ptr<Writer> writer;
     std::wstring notice,noticeDetail=L"Floatlet";CalendarReminders reminders;Glyph noticeGlyph=Glyph::Camera;ULONGLONG noticeUntil=0;std::array<float,9> levels{};bool visualTicking=false;
     Audio* audio=nullptr;std::unique_ptr<SystemControls> system;ControlSnapshot controls;Calendar calendar;
-    std::unique_ptr<MicrophoneMonitor> microphone;MicrophoneSnapshot mic;std::unique_ptr<CalendarFeed> feed;AgendaSnapshot agenda;int agendaOffset=0;
-    Countdown countdown;Stopwatch stopwatch;Alarm alarm;Chime chime;TimeMode timeMode=TimeMode::Timer;bool clockTicking=false;unsigned timerMinutes=5;ULONGLONG lastBrightnessWrite=0;int pendingBrightness=-1;
+    std::unique_ptr<MicrophoneMonitor> microphone;MicrophoneSnapshot mic;std::shared_ptr<const Artwork> callArtwork;std::unique_ptr<CalendarFeed> feed;AgendaSnapshot agenda;int agendaOffset=0;
+    Countdown countdown;Stopwatch stopwatch;std::vector<std::uint64_t> stopwatchLaps;Alarm alarm;Chime chime;TimeMode timeMode=TimeMode::Timer;bool clockTicking=false,timerScrubbing=false;unsigned timerMinutes=5;ULONGLONG lastBrightnessWrite=0;int pendingBrightness=-1;
     int shelfOffset=0,listOffset=0,slider=0;float sliderValue=0;ULONGLONG lastSliderPaint=0;std::wstring airpodsNotice;
     std::unique_ptr<Renderer> renderer;std::shared_ptr<Media> media;DropTarget* drop=nullptr;
     UINT taskbar=RegisterWindowMessageW(L"TaskbarCreated");HMONITOR monitor=nullptr;float dpi=96;Size size{224,36};
@@ -126,11 +146,12 @@ struct App {
         std::vector<Line> lines;std::vector<Mark> marks;auto add=[&](std::wstring t,float x,float y,float font=14,bool secondary=false,float width=0,bool centered=false){lines.push_back({std::move(t),x,y,font,secondary,width,centered});};auto code=[&](std::wstring t,float x,float y,float font=10,bool secondary=false,float width=0){lines.push_back({std::move(t),x,y,font,secondary,width,false,false,true});};
         auto icon=[&](Glyph g,float x,float y,float s,bool active=false,bool disabled=false){marks.push_back({g,x,y,s,active,disabled});};
         auto m=media?media->get():MediaSnapshot{};
-        if(model.state==State::Peek&&!notice.empty()){marks.push_back({noticeGlyph,18,19,28,true,false,28,noticeGlyph==Glyph::AlarmBell&&!settings.reduceMotion?sinf(GetTickCount64()*.035f)*9.f:0.f});add(notice,61,14,15,false,220);add(noticeDetail,61,37,10,true,220);}
-        else if((model.state==State::Collapsed||model.state==State::Peek)&&mic.active&&settings.callControls){icon(Glyph::Headphones,12,(size.h-24)/2,24);add(mic.app,48,(size.h-20)/2,13,false,size.w-94);icon(Glyph::Microphone,size.w-33,(size.h-18)/2,18,mic.muted);}
-        else if((model.state==State::Collapsed||model.state==State::Peek)&&alarm.ringing){marks.push_back({Glyph::AlarmBell,12,(size.h-24)/2,24,true,false,24,!settings.reduceMotion&&GetTickCount64()%4000<800?sinf(GetTickCount64()*.035f)*9.f:0.f});add(L"Alarm",48,(size.h-21)/2,15);icon(Glyph::Close,size.w-32,(size.h-16)/2,16);}
+        const float alertWobble=!settings.reduceMotion&&GetTickCount64()%4000<800?sinf(GetTickCount64()*.035f)*9.f:0.f;
+        if(model.state==State::Peek&&!notice.empty()){marks.push_back({noticeGlyph,18,19,28,true,false,28,(noticeGlyph==Glyph::AlarmBell||noticeGlyph==Glyph::TimerAlert)?alertWobble:0.f});add(notice,61,14,15,false,220);add(noticeDetail,61,37,10,true,220);}
+        else if((model.state==State::Collapsed||model.state==State::Peek)&&mic.active&&settings.callControls){icon(callArtwork?Glyph::Disc:Glyph::Headphones,12,(size.h-24)/2,24);add(mic.app,48,(size.h-20)/2,13,false,size.w-94);icon(Glyph::Microphone,size.w-33,(size.h-18)/2,18,mic.muted);}
+        else if((model.state==State::Collapsed||model.state==State::Peek)&&alarm.ringing){marks.push_back({Glyph::AlarmBell,12,(size.h-24)/2,24,true,false,24,alertWobble});add(L"Alarm",48,(size.h-21)/2,15);icon(Glyph::Close,size.w-32,(size.h-16)/2,16);}
         else if((model.state==State::Collapsed||model.state==State::Peek)&&(countdown.active()||countdown.finished)){
-            marks.push_back({countdown.finished?Glyph::AlarmBell:Glyph::Timer,12,(size.h-24)/2,24,true,false,24,countdown.finished?(!settings.reduceMotion&&GetTickCount64()%4000<800?sinf(GetTickCount64()*.035f)*9.f:0.f):countdown.fraction(GetTickCount64())});add(countdown.finished?L"Timer complete":countdown.text(GetTickCount64()),48,(size.h-21)/2,15,false,143);icon(countdown.finished?Glyph::Close:countdown.running?Glyph::Pause:Glyph::Play,size.w-32,(size.h-14)/2,14);
+            marks.push_back({countdown.finished?Glyph::TimerAlert:Glyph::Timer,12,(size.h-24)/2,24,true,false,24,countdown.finished?alertWobble:countdown.fraction(GetTickCount64())});add(countdown.finished?L"Timer complete":countdown.text(GetTickCount64()),48,(size.h-21)/2,15,false,143);icon(countdown.finished?Glyph::Close:countdown.running?Glyph::Pause:Glyph::Play,size.w-32,(size.h-14)/2,14);
         }
         else if((model.state==State::Collapsed||model.state==State::Peek)&&stopwatch.running){icon(Glyph::Timer,13,(size.h-22)/2,22,true);add(stopwatch.text(GetTickCount64()),47,(size.h-22)/2,16,false,130);icon(Glyph::Pause,size.w-33,(size.h-18)/2,18);}
         else if((model.state==State::Collapsed||model.state==State::Peek)&&!m.play&&airpodsNotice.empty()){ /* Resting pill intentionally has no text or disabled transport. */ }
@@ -153,26 +174,31 @@ struct App {
                 add(std::to_wstring(settings.paths.size())+L" files",18,168,11,true);add(L"Screenshots",94,168,11,true,100);icon(Glyph::Plus,219,166,17);add(L"Add files",242,168,11);icon(Glyph::More,321,166,18);
             }else if(model.state==State::DragOver){icon(Glyph::Folder,160,55,32);add(L"Add to your tray",126,103,15);add(L"Release to keep a reference",111,133,11,true);}
             else if(model.state==State::Call){
-                icon(Glyph::Headphones,22,56,32);add(mic.active?mic.app:L"No supported microphone session",70,53,16,false,250);add(mic.active?(mic.muted?L"Microphone muted":L"Microphone active"):L"Voice activity appears automatically",70,79,11,true,250);
+                icon(mic.active&&callArtwork?Glyph::Disc:Glyph::Headphones,22,56,32);add(mic.active?mic.app:L"No supported microphone session",70,53,16,false,250);add(mic.active?(mic.muted?L"Microphone muted":L"Microphone active"):L"Voice activity appears automatically",70,79,11,true,250);
                 icon(Glyph::Chip,22,114,120);add(mic.muted?L"Unmute microphone":L"Mute microphone",31,120,11,!mic.active,115);icon(Glyph::Chip,174,114,158);add(L"Open call app",186,120,11,!mic.active,140);add(L"Mute applies to this microphone in all apps.",22,155,10,true,310);add(L"Names, deafen and hang-up are in the call app.",22,173,10,true,310);
             }
             else if(model.state==State::Timer && (alarm.ringing||countdown.finished)){
-                marks.push_back({Glyph::AlarmBell,142,79,60,true,false,60,!settings.reduceMotion&&GetTickCount64()%4000<800?sinf(GetTickCount64()*.035f)*9.f:0.f});add(alarm.ringing&&countdown.finished?L"Alarm and timer":alarm.ringing?L"Alarm ringing":L"Time is up",16,159,24,false,312,true);add(L"Stays active until you dismiss it.",16,202,11,true,312,true);marks.push_back({Glyph::Card,88,248,168,true,false,42});add(L"Dismiss",88,260,14,false,168,true);
+                marks.push_back({alarm.ringing?Glyph::AlarmBell:Glyph::TimerAlert,134,85,76,true,false,76,alertWobble});add(alarm.ringing&&countdown.finished?L"Alarm and timer":alarm.ringing?L"Alarm ringing":L"Timer complete",16,182,25,false,312,true);add(L"The alert and chime stop when you dismiss.",16,223,11,true,312,true);marks.push_back({Glyph::Card,88,280,168,true,false,47});add(L"Dismiss alert",88,294,14,false,168,true);
             }else if(model.state==State::Timer){
                 const wchar_t* modes[]={L"Alarm",L"Timer",L"Stopwatch"};for(int i=0;i<3;++i){if(int(timeMode)==i)icon(Glyph::Chip,16+i*104.f,45,104);add(modes[i],16+i*104.f,51,11,int(timeMode)!=i,104,true);}
                 if(timeMode==TimeMode::Timer){
-                    marks.push_back({Glyph::Timer,118,80,108,true,false,108,countdown.finished?0:countdown.active()?countdown.fraction(GetTickCount64()):1});
-                    add(countdown.finished?L"0:00":countdown.active()?countdown.text(GetTickCount64()):std::to_wstring(timerMinutes)+L":00",112,116,23,false,120,true);
-                    add(countdown.finished?L"Time is up":countdown.running?L"Counting down":countdown.active()?L"Paused":L"Quick timer",16,194,11,true,312,true);
-                    const wchar_t* presets[]={L"1 min",L"5 min",L"10 min",L"25 min"};for(int i=0;i<4;++i){icon(Glyph::Chip,16+i*80.f,223,70);add(presets[i],16+i*80.f,229,11,false,70,true);}
-                    add(L"-",22,270,20);add(L"+",60,270,20);icon(Glyph::Chip,98,267,108);add(countdown.finished?L"Dismiss":countdown.active()?(countdown.running?L"Pause":L"Resume"):L"Start",98,273,12,false,108,true);add(L"Reset",246,273,12,true,72,true);
+                    const wchar_t* marksText[]={L"0",L"5",L"10",L"15",L"20",L"25",L"30"};for(int i=0;i<7;++i)add(marksText[i],22+i*49.f,84,11,i*5>int(timerMinutes)+5||i*5<int(timerMinutes)-5,28,true);
+                    marks.push_back({Glyph::TimerRuler,18,102,308,true,false,94,float(std::min(timerMinutes,30u))/30.f});
+                    marks.push_back({Glyph::Card,20,204,129,true,false,44});add(countdown.active()?(countdown.running?L"Pause timer":L"Resume timer"):L"Start timer",20,217,12,false,129,true);
+                    add(countdown.active()?countdown.text(GetTickCount64()):std::to_wstring(timerMinutes)+L":00",160,199,34,false,164,true);
+                    add(countdown.running?L"Counting down":countdown.active()?L"Paused":L"Drag the scale or choose a preset",20,257,11,true,305);
+                    const wchar_t* presets[]={L"1 min",L"5 min",L"10 min",L"25 min"};for(int i=0;i<4;++i){icon(Glyph::Chip,16+i*80.f,281,70);add(presets[i],16+i*80.f,288,11,false,70,true);}
+                    add(L"-",22,326,22);add(L"+",70,326,22);add(L"Reset",238,333,12,true,84,true);
                 }else if(timeMode==TimeMode::Alarm){
                     add(alarm.text(),16,102,38,false,312,true);add(alarm.ringing?L"Alarm ringing":alarm.armed?L"Set for the next occurrence":L"Choose a time (24-hour)",16,161,11,true,312,true);
                     icon(Glyph::Chip,24,201,136);icon(Glyph::Chip,184,201,136);add(L"-    Hour    +",24,207,12,false,136,true);add(L"-   Minute   +",184,207,12,false,136,true);
                     icon(Glyph::Chip,88,248,168);add(alarm.ringing?L"Dismiss":alarm.armed?L"Cancel alarm":L"Set alarm",88,254,12,false,168,true);add(L"While the app is open. No wake from sleep.",16,289,10,true,312,true);
                 }else{
-                    add(stopwatch.preciseText(GetTickCount64()),16,112,38,false,312,true);add(stopwatch.running?L"Running":stopwatch.held?L"Paused":L"Ready when you are",16,181,11,true,312,true);
-                    icon(Glyph::RoundButton,70,228,64,!stopwatch.running);icon(Glyph::RoundButton,218,228,64);add(stopwatch.running?L"Stop":stopwatch.held?L"Resume":L"Start",70,249,12,false,64,true);add(L"Reset",218,249,12,true,64,true);
+                    marks.push_back({Glyph::StopwatchDial,85,81,174,true,false,174,float(stopwatch.elapsed(GetTickCount64())%60000)/60000.f});
+                    add(L"60",152,88,11,false,40,true);add(L"15",228,157,11,false,32,true);add(L"30",152,230,11,false,40,true);add(L"45",80,157,11,false,32,true);
+                    add(stopwatch.preciseText(GetTickCount64()),16,263,28,false,312,true);
+                    if(!stopwatchLaps.empty()){auto last=stopwatchLaps.back(),prior=stopwatchLaps.size()>1?stopwatchLaps[stopwatchLaps.size()-2]:0;auto delta=last-prior;add(L"Lap "+std::to_wstring(stopwatchLaps.size())+L"   "+clockText(unsigned(delta/60000),unsigned((delta/1000)%60)),16,299,10,true,312,true);}else add(stopwatch.running?L"Tap Lap to mark a split":stopwatch.held?L"Paused":L"Ready when you are",16,299,10,true,312,true);
+                    icon(Glyph::RoundButton,44,312,55,!stopwatch.running);icon(Glyph::RoundButton,245,312,55);add(stopwatch.running?L"Stop":stopwatch.held?L"Resume":L"Start",44,330,12,false,55,true);add(stopwatch.running?L"Lap":L"Reset",245,330,12,true,55,true);
                 }
             }
             else if(model.state==State::Preferences){
@@ -242,9 +268,10 @@ struct App {
         else if(tracking){marks.push_back({Glyph::Card,size.w-30,0,28,false,false,20});add(L"-",size.w-28,0,16,false,24,true);}
         HIGHCONTRASTW high{sizeof(high)};SystemParametersInfoW(SPI_GETHIGHCONTRAST,sizeof(high),&high,0);
         BOOL motion=TRUE;SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION,0,&motion,0);
-        try{renderer->draw(size.w,size.h,dpi,lines,animate&&motion&&!settings.reduceMotion,(high.dwFlags&HCF_HIGHCONTRASTON)!=0,marks,m.artwork,model.state==State::Preferences||model.state==State::SearchPreferences);}catch(...){
+        auto art=(mic.active&&settings.callControls&&(model.state==State::Collapsed||model.state==State::Peek||model.state==State::Call))?callArtwork:m.artwork;
+        try{renderer->draw(size.w,size.h,dpi,lines,animate&&motion&&!settings.reduceMotion,(high.dwFlags&HCF_HIGHCONTRASTON)!=0,marks,art,model.state==State::Preferences||model.state==State::SearchPreferences);}catch(...){
             // Rebuild all D3D/D2D/composition resources once after device loss.
-            try{renderer=std::make_unique<Renderer>();renderer->initialize(hwnd);syncCanvas();renderer->draw(size.w,size.h,dpi,lines,false,(high.dwFlags&HCF_HIGHCONTRASTON)!=0,marks,m.artwork,model.state==State::Preferences||model.state==State::SearchPreferences);}catch(...){ShowWindow(hwnd,SW_HIDE);message=L"Graphics unavailable. Use tray Show to retry.";}
+            try{renderer=std::make_unique<Renderer>();renderer->initialize(hwnd);syncCanvas();renderer->draw(size.w,size.h,dpi,lines,false,(high.dwFlags&HCF_HIGHCONTRASTON)!=0,marks,art,model.state==State::Preferences||model.state==State::SearchPreferences);}catch(...){ShowWindow(hwnd,SW_HIDE);message=L"Graphics unavailable. Use tray Show to retry.";}
         }
     }
     void sample(){FILETIME i{},k{},u{};ULONGLONG now=GetTickCount64();if(GetSystemTimes(&i,&k,&u)){auto iv=value(i),kv=value(k),uv=value(u);if(lastSample&&now-lastSample<3000&&iv>=lastIdle&&kv>=lastKernel&&uv>=lastUser)cpuLoad=cpu(iv-lastIdle,kv-lastKernel,uv-lastUser);else cpuLoad.reset();lastIdle=iv;lastKernel=kv;lastUser=uv;lastSample=now;}GlobalMemoryStatusEx(&memory);render();}
@@ -257,7 +284,7 @@ struct App {
     void syncVisualTick(){auto m=media?media->get():MediaSnapshot{};bool wanted=!minimized&&!settings.reduceMotion&&!suspended&&!captureFrozen&&((model.state==State::Collapsed&&m.playing&&!stopwatch.running&&!countdown.active()&&!countdown.finished&&!alarm.ringing&&!(mic.active&&settings.callControls)&&notice.empty())||((alarm.ringing||countdown.finished)&&(model.state==State::Collapsed||model.state==State::Peek||model.state==State::Timer)&&GetTickCount64()%4000<800)||(model.state==State::Timer&&timeMode==TimeMode::Stopwatch&&stopwatch.running));if(wanted&&!visualTicking){SetTimer(hwnd,10,33,nullptr);visualTicking=true;}else if(!wanted&&visualTicking){KillTimer(hwnd,10);visualTicking=false;}}
     void syncTimeTick(){syncVisualTick();bool needed=countdown.running||countdown.finished||alarm.armed||alarm.ringing||(stopwatch.running&&(model.state==State::Collapsed||model.state==State::Peek||(model.state==State::Timer&&timeMode==TimeMode::Stopwatch)));if(needed&&!clockTicking)clockTicking=SetTimer(hwnd,8,1000,nullptr)!=0;else if(!needed&&clockTicking){KillTimer(hwnd,8);clockTicking=false;}}
     void dismissTimeAlert(){bool wasRinging=alarm.ringing||countdown.finished;chime.stop();alarm.ringing=false;if(countdown.finished)countdown.cancel();syncTimeTick();if(wasRinging)popNotice(L"Alert dismissed",1600,true,Glyph::AlarmBell);}
-    void timerTick(){auto now=GetTickCount64();bool timerDone=countdown.tick(now),alarmDone=alarm.tick(std::chrono::system_clock::now());if(timerDone||alarmDone){chime.start();NOTIFYICONDATAW n{sizeof(n)};n.hWnd=hwnd;n.uID=1;n.uFlags=NIF_INFO;n.dwInfoFlags=NIIF_INFO|NIIF_NOSOUND|NIIF_RESPECT_QUIET_TIME;wcscpy_s(n.szInfoTitle,alarmDone?L"Alarm":L"Timer complete");wcscpy_s(n.szInfo,L"Open Clock and press Dismiss to stop the alert.");Shell_NotifyIconW(NIM_MODIFY,&n);popNotice(alarmDone?L"Alarm ringing":L"Timer complete",5000,true,Glyph::AlarmBell);layout();}syncTimeTick();if(model.state==State::Timer||model.state==State::Collapsed||model.state==State::Peek)render();}
+    void timerTick(){auto now=GetTickCount64();bool timerDone=countdown.tick(now),alarmDone=alarm.tick(std::chrono::system_clock::now());if(timerDone||alarmDone){chime.start();NOTIFYICONDATAW n{sizeof(n)};n.hWnd=hwnd;n.uID=1;n.uFlags=NIF_INFO;n.dwInfoFlags=NIIF_NOSOUND|NIIF_RESPECT_QUIET_TIME;wcscpy_s(n.szInfoTitle,alarmDone?L"Alarm":L"Timer complete");wcscpy_s(n.szInfo,L"Open Clock and press Dismiss to stop the alert.");Shell_NotifyIconW(NIM_MODIFY,&n);popNotice(alarmDone?L"Alarm ringing":L"Timer complete",5000,true,alarmDone?Glyph::AlarmBell:Glyph::TimerAlert);layout();}syncTimeTick();if(model.state==State::Timer||model.state==State::Collapsed||model.state==State::Peek)render();}
     void launchSettings(const wchar_t* uri){auto result=reinterpret_cast<INT_PTR>(ShellExecuteW(hwnd,L"open",uri,nullptr,nullptr,SW_SHOWNORMAL));if(result<=32){message=L"Windows could not open this setting";render();}}
     void configureSearch(bool shortcutChanged=true){if(shortcutChanged){searchShortcut.reset();searchHotkey=!review&&searchShortcut.configure(hwnd,settings.search);}if(launcher){auto options=settings.search;options.reduceMotion=settings.reduceMotion;launcher->configure(options);}}
     void command(int id){message.clear();if(id>=RevealBase&&id<RevealBase+100){auto index=id-RevealBase;if(index<int(settings.paths.size())){PIDLIST_ABSOLUTE pidl=nullptr;if(SUCCEEDED(SHParseDisplayName(settings.paths[index].c_str(),nullptr,&pidl,0,nullptr))){SHOpenFolderAndSelectItems(pidl,0,nullptr,0);CoTaskMemFree(pidl);}else error(L"Original unavailable. Reference kept.");}return;}
@@ -273,7 +300,7 @@ struct App {
         case TimerPause:timerTick();if(countdown.finished)break;if(countdown.running)countdown.pause(GetTickCount64());else countdown.resume(GetTickCount64());syncTimeTick();render();break;
         case DismissAlert:dismissTimeAlert();layout();break;case TimerCancel:if(alarm.ringing||countdown.finished)break;countdown.cancel();syncTimeTick();layout();break;
         case ReduceMotion:settings.reduceMotion=!settings.reduceMotion;configureSearch();dirty();layout();break;
-        case CallControls:settings.callControls=!settings.callControls;microphone->enable(settings.callControls);if(!settings.callControls)mic={};dirty();layout();break;
+        case CallControls:settings.callControls=!settings.callControls;microphone->enable(settings.callControls);if(!settings.callControls){mic={};callArtwork.reset();}dirty();layout();break;
         case CallPanel:focus();model.panel(State::Call);layout();break;
         case MicrophoneMute:if(settings.callControls&&mic.active)microphone->mute();break;
         case OpenCallApp:if(mic.active&&!MicrophoneMonitor::openApp(mic.app))popNotice(L"Open "+mic.app+L" from the taskbar",2400,false,Glyph::Headphones);break;
@@ -311,11 +338,11 @@ struct App {
     void click(float x,float y){if(minimized||(tracking&&localX(int(x*dpi/96))>=size.w-30&&y<20)){minimizeIsland();return;}if(!notice.empty()){notice.clear();KillTimer(hwnd,11);if(alarm.ringing||countdown.finished){timeMode=alarm.ringing?TimeMode::Alarm:TimeMode::Timer;command(TimerPanel);}else {model.state=State::Collapsed;layout();}return;}x-=(geometry.bounds.w*96.f/dpi-size.w)/2;if((model.state==State::Collapsed||model.state==State::Peek)&&(alarm.ringing||countdown.finished)){timeMode=alarm.ringing?TimeMode::Alarm:TimeMode::Timer;command(TimerPanel);return;}if((model.state==State::Collapsed||model.state==State::Peek)&&mic.active&&settings.callControls){command(x>size.w-45?MicrophoneMute:CallPanel);return;}if((model.state==State::Collapsed||model.state==State::Peek)&&(alarm.ringing||countdown.finished)){timeMode=alarm.ringing?TimeMode::Alarm:TimeMode::Timer;command(TimerPanel);return;}if((model.state==State::Collapsed||model.state==State::Peek)&&(countdown.active()||countdown.finished)){if(x>size.w-45&&countdown.active())command(TimerPause);else command(TimerPanel);return;}if((model.state==State::Collapsed||model.state==State::Peek)&&stopwatch.running){if(x>size.w-45){stopwatch.toggle(GetTickCount64());layout();}else{timeMode=TimeMode::Stopwatch;command(TimerPanel);}return;}if(model.state==State::Peek&&airpodsNotice.empty()&&media->get().play){int hit=hoverTransport(x,y);if(hit>=0){auto m=media->get();if(hit==0&&m.previous)command(Previous);else if(hit==1&&m.play)command(Play);else if(hit==2&&m.next)command(Next);return;}}if(model.state==State::Collapsed||model.state==State::Peek){focus();event(Event::Open);return;}if(y<40){if(x>size.w-43)command(Pin);else if(x>size.w-73)command(PreferencesPanel);else if(x<266)command(x<74?Music:x<138?Files:x<202?Controls:TimerPanel);return;}
         if(model.state==State::Call){if(y>=110&&y<146){if(x>=22&&x<156)command(MicrophoneMute);else if(x>=174&&x<332)command(OpenCallApp);}return;}
         if(model.state==State::Timer){
-            if(alarm.ringing||countdown.finished){if(y>=248&&y<290&&x>=88&&x<256)command(DismissAlert);return;}
+            if(alarm.ringing||countdown.finished){if(y>=280&&y<327&&x>=88&&x<256)command(DismissAlert);return;}
             if(y>=45&&y<76){timeMode=TimeMode(std::clamp(int((x-16)/104),0,2));syncTimeTick();render();return;}
-            if(timeMode==TimeMode::Timer){if(y>=223&&y<256&&!countdown.active()){int i=std::clamp(int((x-16)/80),0,3);command(Timer1+i);}else if(y>=267&&y<309){if(countdown.finished){command(TimerCancel);}else if(x<48){if(!countdown.active())command(TimerLess);}else if(x<90){if(!countdown.active())command(TimerMore);}else if(x<215)command(countdown.active()?TimerPause:TimerStart);else command(TimerCancel);}}
+            if(timeMode==TimeMode::Timer){if(y>=102&&y<190&&!countdown.active()){timerMinutes=unsigned(std::clamp(int(std::lround((x-27)/290.f*30.f)),1,30));render();}else if(y>=204&&y<252&&x>=20&&x<150){command(countdown.active()?TimerPause:TimerStart);}else if(y>=281&&y<311&&!countdown.active()){int i=std::clamp(int((x-16)/80),0,3);command(Timer1+i);}else if(y>=320&&y<362){if(x<58){if(!countdown.active())command(TimerLess);}else if(x<112){if(!countdown.active())command(TimerMore);}else if(x>=220)command(TimerCancel);}}
             else if(timeMode==TimeMode::Alarm){if(y>=201&&y<234){alarm.cancel();dismissTimeAlert();if(x>=24&&x<160)alarm.hour=(alarm.hour+(x<92?23:1))%24;else if(x>=184&&x<320)alarm.minute=(alarm.minute+(x<252?59:1))%60;}else if(y>=248&&y<280&&x>=88&&x<256){if(alarm.ringing){dismissTimeAlert();}else if(alarm.armed)alarm.cancel();else try{alarm.arm(std::chrono::system_clock::now());}catch(...){message=L"Alarm time could not be set.";}}syncTimeTick();render();}
-            else if(y>=228&&y<292){if(x>=70&&x<134){stopwatch.toggle(GetTickCount64());if(stopwatch.running)popNotice(L"Stopwatch running",1800,false,Glyph::AlarmBell);}else if(x>=218&&x<282)stopwatch.reset();syncTimeTick();render();}return;
+            else if(y>=312&&y<367){if(x>=44&&x<108){stopwatch.toggle(GetTickCount64());if(stopwatch.running)popNotice(L"Stopwatch running",1800,false,Glyph::Timer);}else if(x>=245&&x<300){if(stopwatch.running)stopwatchLaps.push_back(stopwatch.elapsed(GetTickCount64()));else{stopwatch.reset();stopwatchLaps.clear();}}syncTimeTick();render();}return;
         }
         if(model.state==State::Preferences){if(y>=99&&y<264){int row=int((y-99)/33);int actions[]={IconOnly,FollowPointer,Touch,ReduceMotion,CallControls};command(actions[row]);render();}else if(y>=271&&y<301)command(CalendarConnect);else if(y>=302&&y<331)command(StartupSettings);else if(y>=331&&y<354)command(SearchPreferences);return;}
         if(model.state==State::SearchPreferences){if(y>=45&&y<70&&x<145){command(PreferencesPanel);return;}bool shortcutChanged=false;if(y>=72&&y<104&&x>=258){settings.search.enabled=!settings.search.enabled;shortcutChanged=true;}else if(y>=133&&y<166){settings.search.provider=x<177?0:1;}else if(y>=227&&y<262&&settings.search.provider==1){settings.search.scope=x<177?0:1;}else if(y>=296&&y<366){int i=(y>=334?2:0)+(x>=177?1:0);bool* values[]={&settings.search.applications,&settings.search.files,&settings.search.windows,&settings.search.fuzzy};*values[i]=!*values[i];}else if(y>=457&&y<490){if(x<177){searchShortcut.reset();if(searchRecorder.start(hwnd,settings.search)){message=L"Hold modifiers, then press a key";}else {message=L"Could not record. Try the preset.";configureSearch();}render();return;}searchRecorder.stop();settings.search.key=VK_SPACE;settings.search.modifiers=MOD_ALT;settings.search.sides=2;settings.search.extended=false;shortcutChanged=true;}else return;if(searchRecorder.recording()){searchRecorder.stop();shortcutChanged=true;}message.clear();dirty();configureSearch(shortcutChanged);render();return;}
@@ -334,16 +361,18 @@ struct App {
         case WM_ERASEBKGND:return 1;
         case WM_PAINT:{PAINTSTRUCT ps;BeginPaint(hwnd,&ps);EndPaint(hwnd,&ps);return 0;}
         case WM_MOUSEMOVE:
+            if(timerScrubbing){auto x=localX(GET_X_LPARAM(l)),y=GET_Y_LPARAM(l)*96.f/dpi;if(y>=85&&y<205){timerMinutes=unsigned(std::clamp(int(std::lround((x-27)/290.f*30.f)),1,30));render();}return 0;}
             if(slider){auto now=GetTickCount64();if(now-lastSliderPaint>=16){lastSliderPaint=now;sliderTo(GET_X_LPARAM(l),false);}return 0;}
             if(downItem>=0&&(w&MK_LBUTTON)&&(abs(GET_X_LPARAM(l)-down.x)>GetSystemMetrics(SM_CXDRAG)||abs(GET_Y_LPARAM(l)-down.y)>GetSystemMetrics(SM_CYDRAG))){auto path=settings.paths[downItem];downItem=-1;ReleaseCapture();event(Event::DragStart);auto result=dragCopy(hwnd,path);event(Event::DragEnd);message=result==DRAGDROP_S_DROP?L"Copy drag completed. Reference kept.":L"Drag cancelled or unavailable. Reference kept.";render();return 0;}
             KillTimer(hwnd,2);if(!tracking){tracking=true;render();TRACKMOUSEEVENT t{sizeof(t),TME_LEAVE,hwnd,0};TrackMouseEvent(&t);SetTimer(hwnd,1,120,nullptr);}return 0;
         case WM_MOUSELEAVE:tracking=false;render();KillTimer(hwnd,1);SetTimer(hwnd,2,model.state==State::Preferences||model.state==State::SearchPreferences?600:220,nullptr);return 0;
         case WM_LBUTTONDBLCLK:{float x=localX(GET_X_LPARAM(l)),y=GET_Y_LPARAM(l)*96.f/dpi;if(model.state==State::Calendar&&y>=108&&y<270&&x>=17&&x<325){auto day=calendar.dayAt(int((y-108)/27)*7+int((x-17)/44));if(day){calendar.selected=day;command(AgendaPanel);}}return 0;}
         case WM_LBUTTONDOWN:{if(minimized){SetCapture(hwnd);return 0;}down={GET_X_LPARAM(l),GET_Y_LPARAM(l)};float x=localX(down.x),y=down.y*96.f/dpi;if((model.state==State::Collapsed||model.state==State::Peek)&&x>size.w-45&&((mic.active&&settings.callControls)||countdown.active()))return 0;if(model.state==State::Peek&&airpodsNotice.empty()&&media->get().play&&hoverTransport(x,y)>=0)return 0;focus();
+            if(model.state==State::Timer&&timeMode==TimeMode::Timer&&!countdown.active()&&!alarm.ringing&&y>=102&&y<190&&x>=18&&x<=326){timerScrubbing=true;SetCapture(hwnd);timerMinutes=unsigned(std::clamp(int(std::lround((x-27)/290.f*30.f)),1,30));render();return 0;}
             if(model.state==State::Controls&&x>=56&&x<=328){if(y>=251&&y<=286&&audio&&audio->available)slider=1;else if(y>=179&&y<=214&&controls.brightness>=0)slider=2;if(slider){SetCapture(hwnd);sliderTo(down.x,false);return 0;}}
             if(model.state==State::Shelf&&x<303&&y>=50&&y<140){int row=int((y-50)/30)+shelfOffset;if(row<int(settings.paths.size())){downItem=row;SetCapture(hwnd);}}return 0;}
-        case WM_LBUTTONUP:if(slider){sliderTo(GET_X_LPARAM(l),true);slider=0;ReleaseCapture();return 0;}ReleaseCapture();if(downItem>=0){downItem=-1;return 0;}click(GET_X_LPARAM(l)*96.f/dpi,GET_Y_LPARAM(l)*96.f/dpi);return 0;
-        case WM_CAPTURECHANGED:slider=0;downItem=-1;return 0;
+        case WM_LBUTTONUP:if(timerScrubbing){timerScrubbing=false;ReleaseCapture();return 0;}if(slider){sliderTo(GET_X_LPARAM(l),true);slider=0;ReleaseCapture();return 0;}ReleaseCapture();if(downItem>=0){downItem=-1;return 0;}click(GET_X_LPARAM(l)*96.f/dpi,GET_Y_LPARAM(l)*96.f/dpi);return 0;
+        case WM_CAPTURECHANGED:slider=0;timerScrubbing=false;downItem=-1;return 0;
         case WM_MOUSEWHEEL:{int delta=GET_WHEEL_DELTA_WPARAM(w)>0?-1:1;if(model.state==State::Shelf)shelfOffset=std::clamp(shelfOffset+delta,0,std::max(0,int(settings.paths.size())-3));else if(model.state==State::Screenshots||model.state==State::Wifi){auto count=model.state==State::Screenshots?controls.screenshots.size():controls.wifi.size();listOffset=std::clamp(listOffset+delta,0,std::max(0,int(count)-4));}else if(model.state==State::Agenda)agendaOffset=std::clamp(agendaOffset+delta,0,std::max(0,int(agenda.agenda.entries.size())-4));else if(model.state==State::Calendar){calendar.move(delta);feed->request(calendar.year,calendar.month,calendar.selected);}render();return 0;}
         case WM_CONTEXTMENU:menu();return 0;
         case WM_SYSKEYDOWN:if(w==VK_F10){menu();return 0;}break;
@@ -357,7 +386,7 @@ struct App {
         case WM_APP+9:if(audio){auto old=audio->id;audio->bind();if(audio->id!=old&&audio->airpods()&&!captureActive()&&!suspended&&model.state==State::Collapsed){airpodsNotice=audio->name;model.state=State::Peek;layout();SetTimer(hwnd,7,4000,nullptr);}else render();}return 0;
         case WM_APP+10:if(audio)audio->read();if(model.state==State::Controls)render();return 0;
         case WM_APP+11:if(system){controls=system->get();if(pendingBrightness>=0&&(controls.brightness==pendingBrightness||FAILED(controls.brightnessError)))pendingBrightness=-1;if(model.state==State::Wifi)message=controls.status;if(model.state==State::Controls||model.state==State::Wifi||model.state==State::Screenshots)render();}return 0;
-        case WM_APP+14:if(microphone){mic=microphone->get();if(model.state==State::Collapsed||model.state==State::Peek)layout();else if(model.state==State::Call)render();}return 0;
+        case WM_APP+14:if(microphone){auto previous=mic;mic=microphone->get();if(mic.pid!=previous.pid)callArtwork=mic.active?processArtwork(mic.pid):nullptr;if(mic.active&&!previous.active&&settings.callControls&&!alarm.ringing&&!countdown.finished&&!captureActive()&&!minimized){popNotice(mic.app+L" microphone active",3100,false,callArtwork?Glyph::Disc:Glyph::Headphones,L"Open to mute or return to the app");}else if(model.state==State::Collapsed||model.state==State::Peek)layout();else if(model.state==State::Call)render();}return 0;
         case WM_APP+13:if(feed){agenda=feed->get();if(agenda.connected&&!agenda.status.starts_with(L"Offline")&&!agenda.status.starts_with(L"Could")&&!suspended&&!captureFrozen&&!captureActive()&&notice.empty()&&!alarm.ringing&&!countdown.finished&&model.state!=State::Hidden&&model.state!=State::Unavailable){auto now=std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now());if(auto next=reminders.next(agenda.upcoming,now)){auto mins=((next->start-now).count()+59)/60;popNotice(std::wstring(winrt::to_hstring(next->title)),7000,true,Glyph::CalendarIcon,L"Starts in "+std::to_wstring(mins)+L" minute"+(mins==1?L"":L"s"));}}if(model.state==State::Agenda||model.state==State::Calendar||model.state==State::Preferences)render();}return 0;
         case WM_APP+12:DestroyWindow(hwnd);return 0;
         case WM_APP+6:layoutQueued=false;layout();return 0;

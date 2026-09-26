@@ -41,7 +41,7 @@ inline Size sizeFor(State s, bool touch = false) {
     case State::Music: return {344,154};
     case State::Shelf: case State::DragOver: case State::DraggingOut: return {356,196};
     case State::Call: return {344,184};
-    case State::Timer: return {344,320};
+    case State::Timer: return {344,370};
     case State::Preferences: return {356,380};
     case State::SearchPreferences: return {356,530};
     case State::Agenda: return {344,328};

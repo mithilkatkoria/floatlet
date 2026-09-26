@@ -15,14 +15,22 @@ function Label($x,$y,$text,$size,$color) {
  $brush=[Drawing.SolidBrush]::new([Drawing.ColorTranslator]::FromHtml($color));$g.DrawString($text,$font,$brush,$x,$y);$font.Dispose();$brush.Dispose()
 }
 Box 760 50 400 530 40 '#e0e5d4'
-Label 65 60 'FLOATLET' 23 '#30392c'
+Box 65 60 41 41 11 '#0e1014'
+Box 76 69 8 25 4 '#f7f6ef'
+Box 77 69 19 8 4 '#f7f6ef'
+Box 77 80 15 7 3 '#f7f6ef'
+$violet=[Drawing.SolidBrush]::new([Drawing.ColorTranslator]::FromHtml('#aea4ed'))
+$g.FillEllipse($violet,94,89,6,6)
+$violet.Dispose()
+Label 119 63 'FLOATLET' 23 '#30392c'
 Label 65 151 'A little island.' 65 '#242820'
 Label 65 237 'A calmer desktop.' 60 '#6d775a'
 Label 68 369 'Music. Files. Clocks. Your day.' 23 '#62675c'
 Label 68 413 'Free & open source for Windows 10 and 11' 20 '#62675c'
 Box 790 237 340 117 56 '#090b0d'
 Box 815 263 65 65 17 '#81936d'
-Label 828 264 '♫' 37 '#f3f0df'
+Box 828 277 37 8 4 '#f3f0df'
+Box 828 291 25 8 4 '#f3f0df'
 Label 894 266 'Room to breathe' 16 '#f7f6f2'
 Label 894 292 'Floatlet Sessions' 12 '#a1a7a1'
 $heights=@(8,16,24,14,20,10)

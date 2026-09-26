@@ -1,5 +1,7 @@
 # Floatlet
 
+![Floatlet icon](website/public/favicon.svg)
+
 [![Windows build](https://github.com/mithilkatkoria/floatlet/actions/workflows/build.yml/badge.svg)](https://github.com/mithilkatkoria/floatlet/actions/workflows/build.yml)
 
 A compact Dynamic Island companion for Windows 10 and 11. Music, a temporary file tray, quick controls, timers and a calendar above your workspace. Built in C++20 with native Windows composition, without Electron or a bundled browser.
