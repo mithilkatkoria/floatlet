@@ -45,7 +45,7 @@ namespace {
 constexpr UINT Tray=WM_APP+1;
 HWND captureNotifyWindow=nullptr;
 std::shared_ptr<const Artwork> packagedIcon(const wchar_t* executable){
-    std::filesystem::path asset=std::filesystem::path(executable).parent_path()/L"Assets"/L"AppList.targetsize-48.png";
+    std::filesystem::path asset=std::filesystem::path(executable).parent_path()/L"Assets"/L"AppList.targetsize-48_altform-unplated.png";
     winrt::com_ptr<IWICImagingFactory> factory;
     if(FAILED(CoCreateInstance(CLSID_WICImagingFactory,nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(factory.put()))))return {};
     winrt::com_ptr<IWICBitmapDecoder> decoder;
@@ -196,7 +196,7 @@ struct App {
         auto m=media?media->get():MediaSnapshot{};
         const float alertWobble=!settings.reduceMotion&&GetTickCount64()%4000<800?sinf(GetTickCount64()*.035f)*9.f:0.f;
         if(model.state==State::Peek&&!notice.empty()){marks.push_back({noticeGlyph,18,19,28,true,false,28,(noticeGlyph==Glyph::AlarmBell||noticeGlyph==Glyph::TimerAlert)?alertWobble:0.f});add(notice,61,14,15,false,220);add(noticeDetail,61,37,10,true,220);}
-        else if((model.state==State::Collapsed||model.state==State::Peek)&&mic.active&&settings.callControls){icon(callArtwork?Glyph::Disc:Glyph::Headphones,12,(size.h-24)/2,24);add(mic.app,48,(size.h-20)/2,13,false,size.w-94);icon(Glyph::Microphone,size.w-33,(size.h-18)/2,18,mic.muted);}
+        else if((model.state==State::Collapsed||model.state==State::Peek)&&mic.active&&settings.callControls){float iconSize=mic.app==L"WhatsApp"?20.f:24.f;icon(callArtwork?Glyph::Disc:Glyph::Headphones,14,(size.h-iconSize)/2,iconSize);add(mic.app,48,(size.h-20)/2,13,false,size.w-94);icon(Glyph::Microphone,size.w-33,(size.h-18)/2,18,mic.muted);}
         else if((model.state==State::Collapsed||model.state==State::Peek)&&alarm.ringing){marks.push_back({Glyph::AlarmBell,12,(size.h-24)/2,24,true,false,24,alertWobble});add(L"Alarm",48,(size.h-21)/2,15);icon(Glyph::Close,size.w-32,(size.h-16)/2,16);}
         else if((model.state==State::Collapsed||model.state==State::Peek)&&(countdown.active()||countdown.finished)){
             marks.push_back({countdown.finished?Glyph::TimerAlert:Glyph::Timer,12,(size.h-24)/2,24,true,false,24,countdown.finished?alertWobble:countdown.fraction(GetTickCount64())});add(countdown.finished?L"Timer complete":countdown.text(GetTickCount64()),48,(size.h-21)/2,15,false,143);icon(countdown.finished?Glyph::Close:countdown.running?Glyph::Pause:Glyph::Play,size.w-32,(size.h-14)/2,14);
@@ -222,7 +222,7 @@ struct App {
                 add(std::to_wstring(settings.paths.size())+L" files",18,168,11,true);add(L"Screenshots",94,168,11,true,100);icon(Glyph::Plus,219,166,17);add(L"Add files",242,168,11);icon(Glyph::More,321,166,18);
             }else if(model.state==State::DragOver){icon(Glyph::Folder,160,55,32);add(L"Add to your tray",126,103,15);add(L"Release to keep a reference",111,133,11,true);}
             else if(model.state==State::Call){
-                icon(mic.active&&callArtwork?Glyph::Disc:Glyph::Headphones,22,56,32);add(mic.active?mic.app:L"No supported microphone session",70,53,16,false,250);add(mic.active?(mic.muted?L"Microphone muted":L"Microphone active"):L"Voice activity appears automatically",70,79,11,true,250);
+                icon(mic.active&&callArtwork?Glyph::Disc:Glyph::Headphones,24,58,28);add(mic.active?mic.app:L"No supported microphone session",70,53,16,false,250);add(mic.active?(mic.muted?L"Microphone muted":L"Microphone active"):L"Voice activity appears automatically",70,79,11,true,250);
                 icon(Glyph::Chip,22,114,120);add(mic.muted?L"Unmute microphone":L"Mute microphone",31,120,11,!mic.active,115);icon(Glyph::Chip,174,114,158);add(L"Open call app",186,120,11,!mic.active,140);add(L"Mute applies to this microphone in all apps.",22,155,10,true,310);add(L"Names, deafen and hang-up are in the call app.",22,173,10,true,310);
             }
             else if(model.state==State::Timer && (alarm.ringing||countdown.finished)){
