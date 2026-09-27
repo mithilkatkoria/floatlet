@@ -6,7 +6,7 @@
 
 A compact Dynamic Island companion for Windows 10 and 11. Music, a temporary file tray, quick controls, timers and a calendar above your workspace. Built in C++20 with native Windows composition, without Electron or a bundled browser.
 
-Created by [Mithil Katkoria](https://github.com/mithilkatkoria). Independent open-source software, unaffiliated with Apple, Microsoft or integrated applications.
+Created by draey.dev. Independent open-source software, unaffiliated with Apple, Microsoft or integrated applications.
 
 **[Website](https://floatlet.vercel.app) | [Download](https://github.com/mithilkatkoria/floatlet/releases)** | [Contribute](CONTRIBUTING.md) | [MIT license](LICENSE)
 

@@ -1,6 +1,6 @@
 # Contributing to Floatlet
 
-Issues and pull requests are welcome. Maintained by [Mithil Katkoria](https://github.com/mithilkatkoria).
+Issues and pull requests are welcome. Maintained by draey.dev.
 
 Fork the repository, create a focused branch, and explain the problem and resulting behavior in your pull request. Include the relevant tests and actual measurements when changing rendering, timers, monitoring or memory usage. Never include personal files, calendar feeds, screenshots of private applications, tokens or credentials.
 
