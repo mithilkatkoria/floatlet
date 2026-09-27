@@ -3,6 +3,9 @@
 #include <windowsx.h>
 #include <shellapi.h>
 #include <shlobj.h>
+#include <shobjidl.h>
+#include <appmodel.h>
+#include <wincodec.h>
 #include <wtsapi32.h>
 #include <mmdeviceapi.h>
 #include <endpointvolume.h>
@@ -41,14 +44,59 @@ using namespace delight;
 namespace {
 constexpr UINT Tray=WM_APP+1;
 HWND captureNotifyWindow=nullptr;
+std::shared_ptr<const Artwork> packagedIcon(const wchar_t* executable){
+    std::filesystem::path asset=std::filesystem::path(executable).parent_path()/L"Assets"/L"AppList.targetsize-48.png";
+    winrt::com_ptr<IWICImagingFactory> factory;
+    if(FAILED(CoCreateInstance(CLSID_WICImagingFactory,nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(factory.put()))))return {};
+    winrt::com_ptr<IWICBitmapDecoder> decoder;
+    if(FAILED(factory->CreateDecoderFromFilename(asset.c_str(),nullptr,GENERIC_READ,WICDecodeMetadataCacheOnLoad,decoder.put())))return {};
+    winrt::com_ptr<IWICBitmapFrameDecode> frame;
+    if(FAILED(decoder->GetFrame(0,frame.put())))return {};
+    UINT width=0,height=0;
+    if(FAILED(frame->GetSize(&width,&height))||width!=48||height!=48)return {};
+    winrt::com_ptr<IWICFormatConverter> converter;
+    if(FAILED(factory->CreateFormatConverter(converter.put()))||FAILED(converter->Initialize(frame.get(),GUID_WICPixelFormat32bppPBGRA,WICBitmapDitherTypeNone,nullptr,0,WICBitmapPaletteTypeCustom)))return {};
+    auto art=std::make_shared<Artwork>();art->width=width;art->height=height;art->pixels.resize(width*height*4);
+    if(FAILED(converter->CopyPixels(nullptr,width*4,static_cast<UINT>(art->pixels.size()),art->pixels.data())))return {};
+    return art;
+}
 std::shared_ptr<const Artwork> processArtwork(DWORD pid){
     if(!pid)return {};
     HANDLE process=OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION,FALSE,pid);
     if(!process)return {};
     wchar_t path[32768]{};DWORD length=32768;
     bool found=QueryFullProcessImageNameW(process,0,path,&length)!=FALSE;
+    std::wstring appId;
+    UINT32 appIdLength=0;
+    if(GetApplicationUserModelId(process,&appIdLength,nullptr)==ERROR_INSUFFICIENT_BUFFER&&appIdLength){
+        appId.resize(appIdLength);
+        if(GetApplicationUserModelId(process,&appIdLength,appId.data())==ERROR_SUCCESS)appId.resize(wcsnlen_s(appId.c_str(),appId.size()));
+        else appId.clear();
+    }
+    if(appId.empty()&&found&&std::wstring_view(path).find(L"WhatsApp.Root.exe")!=std::wstring_view::npos){
+        UINT32 familyLength=0;
+        if(GetPackageFamilyName(process,&familyLength,nullptr)==ERROR_INSUFFICIENT_BUFFER&&familyLength){
+            std::wstring family(familyLength,L'\0');
+            if(GetPackageFamilyName(process,&familyLength,family.data())==ERROR_SUCCESS)appId=family.c_str()+std::wstring(L"!App");
+        }
+    }
     CloseHandle(process);
     if(!found)return {};
+    if(std::wstring_view(path).find(L"WhatsApp.Root.exe")!=std::wstring_view::npos){if(auto art=packagedIcon(path))return art;}
+    if(!appId.empty()){
+        winrt::com_ptr<IShellItemImageFactory> factory;
+        if(SUCCEEDED(SHCreateItemInKnownFolder(FOLDERID_AppsFolder,KF_FLAG_DEFAULT,appId.c_str(),IID_PPV_ARGS(factory.put())))){
+            HBITMAP bitmap=nullptr;
+            if(SUCCEEDED(factory->GetImage({48,48},SIIGBF_ICONONLY|SIIGBF_BIGGERSIZEOK,&bitmap))&&bitmap){
+                BITMAPINFO info{};info.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);info.bmiHeader.biWidth=48;info.bmiHeader.biHeight=-48;info.bmiHeader.biPlanes=1;info.bmiHeader.biBitCount=32;info.bmiHeader.biCompression=BI_RGB;
+                auto art=std::make_shared<Artwork>();art->width=48;art->height=48;art->pixels.resize(48*48*4);
+                HDC dc=GetDC(nullptr);
+                bool copied=dc&&GetDIBits(dc,bitmap,0,48,art->pixels.data(),&info,DIB_RGB_COLORS)==48;
+                if(dc)ReleaseDC(nullptr,dc);DeleteObject(bitmap);
+                if(copied)return art;
+            }
+        }
+    }
     SHFILEINFOW info{};
     if(!SHGetFileInfoW(path,0,&info,sizeof info,SHGFI_ICON|SHGFI_LARGEICON)||!info.hIcon)return {};
     constexpr int edge=48;
