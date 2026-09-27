@@ -100,7 +100,7 @@ void Renderer::draw(float w,float h,float dpi,const std::vector<Line>& lines,boo
                 check_hresult(dc->CreateBitmap({artwork->width,artwork->height},artwork->pixels.data(),artwork->width*4,properties,bitmap.put()));
                 winrt::com_ptr<ID2D1Factory> f;dc->GetFactory(f.put());winrt::com_ptr<ID2D1RoundedRectangleGeometry> clip;
                 check_hresult(f->CreateRoundedRectangleGeometry(D2D1::RoundedRect({x,y,x+s,y+s},s*.17f,s*.17f),clip.put()));
-                dc->PushLayer(D2D1::LayerParameters(D2D1::InfiniteRect(),clip.get()),nullptr);dc->DrawBitmap(bitmap.get(),{x,y,x+s,y+s},1,D2D1_BITMAP_INTERPOLATION_MODE_LINEAR);dc->PopLayer();break;
+                dc->PushLayer(D2D1::LayerParameters(D2D1::InfiniteRect(),clip.get()),nullptr);dc->DrawBitmap(bitmap.get(),{x,y,x+s,y+s},1,s<=24?D2D1_INTERPOLATION_MODE_HIGH_QUALITY_CUBIC:D2D1_INTERPOLATION_MODE_LINEAR);dc->PopLayer();break;
             }
             brush->SetOpacity(.065f);dc->FillRoundedRectangle(D2D1::RoundedRect({x,y,x+s,y+s},16,16),brush.get());
             brush->SetOpacity(.12f);ellipse(.5f,.5f,.34f);ellipse(.5f,.5f,.25f);brush->SetOpacity(.75f);ellipse(.5f,.5f,.07f);break;
