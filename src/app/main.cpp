@@ -45,7 +45,7 @@ namespace {
 constexpr UINT Tray=WM_APP+1;
 HWND captureNotifyWindow=nullptr;
 std::shared_ptr<const Artwork> packagedIcon(const wchar_t* executable){
-    std::filesystem::path asset=std::filesystem::path(executable).parent_path()/L"Assets"/L"AppList.targetsize-48_altform-unplated.png";
+    std::filesystem::path asset=std::filesystem::path(executable).parent_path()/L"Assets"/L"TitleIcon32.scale-200.png";
     winrt::com_ptr<IWICImagingFactory> factory;
     if(FAILED(CoCreateInstance(CLSID_WICImagingFactory,nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(factory.put()))))return {};
     winrt::com_ptr<IWICBitmapDecoder> decoder;
@@ -53,7 +53,7 @@ std::shared_ptr<const Artwork> packagedIcon(const wchar_t* executable){
     winrt::com_ptr<IWICBitmapFrameDecode> frame;
     if(FAILED(decoder->GetFrame(0,frame.put())))return {};
     UINT width=0,height=0;
-    if(FAILED(frame->GetSize(&width,&height))||width!=48||height!=48)return {};
+    if(FAILED(frame->GetSize(&width,&height))||width!=64||height!=64)return {};
     winrt::com_ptr<IWICFormatConverter> converter;
     if(FAILED(factory->CreateFormatConverter(converter.put()))||FAILED(converter->Initialize(frame.get(),GUID_WICPixelFormat32bppPBGRA,WICBitmapDitherTypeNone,nullptr,0,WICBitmapPaletteTypeCustom)))return {};
     auto art=std::make_shared<Artwork>();art->width=width;art->height=height;art->pixels.resize(width*height*4);
