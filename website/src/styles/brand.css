@@ -71,6 +71,8 @@
 #island-demo .clock-actions #clock-start{background:#213b2a;color:#b3f0bd}
 #island-demo #clock-lap-summary{margin:5px 0;text-align:center}
 #island-demo .call-avatar{width:54px;height:54px;border-radius:19px;background:#5865f2;color:#fff;box-shadow:0 12px 28px #5865f244,0 1px 0 #ffffff4d inset}
+#island-demo[data-mode=call] .capsule{height:340px}
+#island-demo[data-mode=call] .capsule-inner{overflow:hidden}
 #island-demo .call-actions button{min-height:40px;border-radius:14px;padding:10px 15px}
 #island-demo #call-open{background:#21442f;color:#b6efc7}
 .release-panel dt,.release-panel .fine{color:#52575c}
