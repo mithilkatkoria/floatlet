@@ -1,6 +1,6 @@
 # Floatlet
 
-![Floatlet icon](website/public/favicon.svg)
+<img src="website/public/favicon.svg" alt="Floatlet icon" width="64" height="64">
 
 [![Windows build](https://github.com/mithilkatkoria/floatlet/actions/workflows/build.yml/badge.svg)](https://github.com/mithilkatkoria/floatlet/actions/workflows/build.yml)
 
