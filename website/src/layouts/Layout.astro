@@ -4,6 +4,7 @@ import {release} from '../data/release';
 import '../styles/global.css';
 import '../styles/refinement.css';
 import '../styles/brand.css';
+import '../styles/playground-polish.css';
 const {title=product.name,description=product.description}=Astro.props;
 const canonical=product.origin?new URL(Astro.url.pathname,product.origin).href:null;
 const indexable=product.mode==='production'&&!['/privacy/','/terms/','/404.html','/404/'].includes(Astro.url.pathname);
