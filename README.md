@@ -4,7 +4,7 @@
 
 [![Windows build](https://github.com/mithilkatkoria/floatlet/actions/workflows/build.yml/badge.svg)](https://github.com/mithilkatkoria/floatlet/actions/workflows/build.yml)
 
-A compact Dynamic Island companion for Windows 10 and 11. Music, a temporary file tray, quick controls, timers and a calendar above your workspace. Built in C++20 with native Windows composition, without Electron or a bundled browser.
+Floatlet is a free, open-source Dynamic Island for Windows 10 and 11. Keep music controls, a temporary file tray, timers, PC search and calendar reminders in one compact space above your desktop. Built in C++20 with native Windows composition, without Electron or a bundled browser. No account or subscription is required.
 
 Created by draey.dev. Independent open-source software, unaffiliated with Apple, Microsoft or integrated applications.
 
@@ -27,7 +27,7 @@ Runs outside the taskbar and Alt+Tab. Hover to preview, click to expand, and lea
 
 ## Install
 
-Extract the release ZIP. Run `Floatlet.exe` for portable use, or install for your Windows user:
+Download [Floatlet.exe](https://floatlet.vercel.app/download/) to run it directly. For a managed installation with Windows startup, extract the optional release ZIP and run:
 
 ```powershell
 .\install.ps1 -AcceptDefaults -Launch
