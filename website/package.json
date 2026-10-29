@@ -5,13 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev --host 127.0.0.1",
-    "build": "node scripts/gate.mjs && astro build",
+    "build": "node scripts/sync-theme-csp.mjs --check && node scripts/gate.mjs && astro build",
     "preview": "astro preview --host 127.0.0.1",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
-    "check": "astro check"
+    "check": "astro check",
+    "theme:csp": "node scripts/sync-theme-csp.mjs"
   },
   "dependencies": {
     "@astrojs/check": "0.9.10",
+    "@supabase/supabase-js": "2.118.0",
     "astro": "7.3.2",
     "typescript": "6.0.3"
   },

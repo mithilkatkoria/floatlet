@@ -1,0 +1,2 @@
+// Kept literal so the production CSP can authorize this exact, flash-free bootstrap.
+export const themeBootstrap="(()=>{document.documentElement.dataset.theme='light';document.documentElement.style.colorScheme='light';document.querySelector('meta[name=theme-color]')?.setAttribute('content','#f7f6f1')})();";

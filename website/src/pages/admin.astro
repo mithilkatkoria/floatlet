@@ -1,0 +1,23 @@
+---
+import '../styles/account.css';
+import '../styles/admin.css';
+const url=import.meta.env.PUBLIC_SUPABASE_URL || '';
+const key=import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
+---
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><meta name="robots" content="noindex,nofollow"/><meta name="theme-color" content="#0b0d13"/><title>Signup dashboard | Floatlet</title><link rel="icon" href="/favicon.svg" type="image/svg+xml"/></head>
+<body><a class="skip" href="#admin-main">Skip to dashboard</a>
+<div class="admin-shell" id="admin-app" data-url={url} data-key={key}>
+  <header class="admin-header"><a class="account-brand" href="/"><img src="/favicon.svg" width="38" height="38" alt=""/> floatlet</a><span class="admin-badge">PRIVATE WORKSPACE</span><a href="/account/">Your account ↗</a></header>
+  <main id="admin-main">
+    <p class="eyebrow">FLOATLET  /  ADMIN</p><div class="admin-title"><div><h1>Every new beginning.</h1><p>Signups, confirmations and account activity. Only visible to authorized admins.</p></div><button id="admin-refresh" class="secondary-button" type="button">Refresh ↻</button></div>
+    <div id="admin-status" class="admin-status" role="status" aria-live="polite">Checking your access…</div>
+    <a id="admin-signin" class="admin-signin" href="/account/" hidden>Sign in with your admin account ↗</a>
+    <section id="admin-data" hidden aria-label="Signup list">
+      <div class="admin-stats"><article><span>ACCOUNTS</span><strong id="admin-total">0</strong><small id="admin-total-label">Across Floatlet</small></article><article><span>CONFIRMED ON THIS PAGE</span><strong id="admin-confirmed">0</strong><small>Email ownership verified</small></article><article><span>PROJECT REGION</span><strong>London</strong><small>eu-west-2</small></article></div>
+      <div class="admin-table-wrap"><table><caption>Floatlet accounts, 50 per page</caption><thead><tr><th scope="col">Account</th><th scope="col">Created</th><th scope="col">Status</th><th scope="col">Provider</th><th scope="col">Last sign-in</th></tr></thead><tbody id="signup-rows"></tbody></table></div>
+      <div class="admin-pagination"><button id="admin-prev" type="button">← Previous</button><span id="admin-page">Page 1</span><button id="admin-next" type="button">Next →</button></div>
+    </section>
+  </main><footer class="admin-footer"><span>Floatlet admin</span><span>Account records are protected by server-side authorization.</span></footer>
+</div><script>import '../scripts/admin';</script></body></html>

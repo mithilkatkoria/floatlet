@@ -10,9 +10,11 @@ foreach ($key in @('DelightIsland','GlideIsland','Floatlet')) {
     if ($entry -eq ('"'+$target+'"')) { Remove-ItemProperty -Path $run -Name $key }
 }
 $link=Join-Path ([Environment]::GetFolderPath('Programs')) 'Floatlet.lnk'
+foreach ($link in @($link,(Join-Path ([Environment]::GetFolderPath('Programs')) 'Floatlet Settings.lnk'))) {
 if (Test-Path -LiteralPath $link) {
     $shell=New-Object -ComObject WScript.Shell
     if ($shell.CreateShortcut($link).TargetPath -eq $target) { Remove-Item -LiteralPath $link }
+}
 }
 foreach ($name in @('Floatlet.exe','installed.marker','uninstall.ps1')) {
     $path=Join-Path $install $name

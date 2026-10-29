@@ -1,0 +1,17 @@
+/* Shared brand and navigation. Playground styling loads only on the homepage. */
+:root{font-family:"Segoe UI Variable","Segoe UI",Arial,sans-serif;--accent:#7567ad;--ink:#20232a;--muted:#666b71}
+.brand-mark{display:block;width:34px;height:34px;flex:none;border-radius:10px;box-shadow:0 2px 8px #15192414}
+.wordmark{gap:10px;letter-spacing:-.055em}
+.site-header{border-bottom:1px solid #252a3212}
+.site-header nav a:focus-visible,.wordmark:focus-visible,.button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.button,.nav-download{border-radius:14px}
+.release-panel dt,.release-panel .fine{color:#52575c}
+.breadcrumbs{padding-top:24px;font-size:12px;color:var(--muted)}
+.breadcrumbs ol{display:flex;flex-wrap:wrap;gap:8px 12px;list-style:none;padding:0;margin:0}
+.breadcrumbs li+li:before{content:"/";margin-right:12px;color:#76727e}
+.breadcrumbs a{color:var(--ink);text-underline-offset:3px}
+.breadcrumbs+.page{padding-top:30px}
+@media(max-width:760px){.site-header nav{gap:14px}.site-header nav a:nth-child(2){display:none}}
+@media(max-width:520px){.wordmark{font-size:21px}.brand-mark{width:30px;height:30px}.site-header nav a:not(.nav-download){display:none}.nav-download{padding:9px 11px!important}.breadcrumbs{padding-top:18px}}
+@media(max-width:380px){.site-header{gap:12px}.site-header nav{gap:10px;font-size:12px}.site-header .nav-download{white-space:nowrap;padding:10px}.site-header .wordmark{font-size:20px}}
+@media(max-width:360px){.site-header{gap:6px}.wordmark{font-size:19px}.brand-mark{width:27px;height:27px}.nav-download{font-size:11px}}

@@ -1,0 +1,32 @@
+---
+import Icon from './Icon.astro';
+import '../styles/product-tour.css';
+const chapters=[
+ {id:'music',number:'01',kicker:'YOUR SOUNDTRACK, WITHIN REACH',title:'Stay in your rhythm.',description:'A track changes. The artwork follows. Pause, skip, or open your calendar without losing your place.',action:'Try the music controls'},
+ {id:'files',number:'02',kicker:'A SMALL STOP ALONG THE WAY',title:'Pick it up. Put it down.',description:'Bring a file into the tray. Keep working. Drop a copy into the next app when you need it. Your original stays exactly where it belongs.',action:'Try the file tray'},
+ {id:'clock',number:'03',kicker:'MAKE SPACE FOR FOCUS',title:'A little time, just for this.',description:'Set five minutes or an exact duration. Floatlet keeps time beside your work, then holds the alert until you dismiss it.',action:'Try a custom timer'}
+];
+---
+<section class="product-story wrap" aria-labelledby="story-title" data-scene="music">
+ <div class="story-heading"><p class="eyebrow">ONE SMALL SPACE. PART OF YOUR DAY.</p><h2 id="story-title">See how it<br/><span>fits into your flow.</span></h2><p>Scroll through a few everyday moments.<br/>Then try them for yourself.</p></div>
+ <div class="story-layout">
+  <div class="story-sticky">
+   <div class="story-desktop" aria-hidden="true">
+    <div class="story-desktop-top"><span><span class="status-dot"></span> YOUR DESKTOP, A LITTLE CALMER</span><span>FLOATLET</span></div>
+    <div class="story-work"><div class="story-work-chrome"><i></i><i></i><i></i><span>Today</span></div><div class="story-work-body"><small>MONDAY MORNING</small><strong>Make something<br/>worth making.</strong><div class="story-line"></div><div class="story-line short"></div><div class="story-task"><span>✓</span> A fresh start</div><div class="story-task"><span>○</span> One thing at a time</div></div></div>
+    <div class="story-native">
+     <div class="story-native-tabs"><span class="story-tab-music">Music</span><span class="story-tab-files">Tray</span><span class="story-tab-clock">Clock</span><span>Controls</span><Icon name="sliders" size={13}/></div>
+     <div class="story-screen story-music"><div class="story-album"><span>FM</span><small>SESSIONS</small></div><div class="story-track"><strong>A slower morning</strong><span>Floatlet Sessions</span><div class="story-transport"><Icon name="previous" size={16}/><Icon name="pause" size={18}/><Icon name="next" size={16}/></div></div><div class="story-date"><small>Mon</small><strong>26</strong><span>Oct</span></div><div class="story-equalizer">{Array.from({length:9},(_,i)=><i style={`--i:${i}`}/>)}</div></div>
+     <div class="story-screen story-files"><div><Icon name="file" size={18}/><span>Project outline.pdf</span><span>×</span></div><div><Icon name="file" size={18}/><span>Weekend notes.txt</span><span>×</span></div><footer><span>2 files</span><span>Screenshots</span><span>+ Add files</span></footer></div>
+     <div class="story-screen story-clock"><div class="story-clock-modes"><span>Alarm</span><span>Timer</span><span>Stopwatch</span></div><div class="story-ruler-labels">{[0,5,10,15,20,25,30].map(n=><span>{n}</span>)}</div><div class="story-ruler">{Array.from({length:31},(_,i)=><i class={i%5===0?'major':''}/>)}</div><div class="story-timer-bottom"><span>Pause timer</span><strong>05:00</strong></div><small>Counting down</small></div>
+    </div>
+    <div class="story-floating-file"><Icon name="file" size={21}/><span>Weekend notes.txt</span><svg class="story-cursor" viewBox="0 0 24 28" width="22" height="26"><path d="M2 1v22l6-5 5 9 4-2-5-9 9-1Z" fill="#1d3027" stroke="#fff" stroke-width="1.5"/></svg></div>
+    <div class="story-focus"><span class="focus-orbit"></span><Icon name="clock" size={17}/><span>A moment to focus</span></div>
+    <div class="story-desktop-footer"><span>Illustrated with sample data</span><span class="story-fraction">01 / 03</span></div>
+   </div>
+   <nav class="story-progress" aria-label="Explore Floatlet features">{chapters.map((chapter,i)=><a href={'#'+chapter.id} data-story-link={chapter.id} aria-current={i===0?'step':undefined}><span>{chapter.number}</span>{chapter.id==='files'?'File tray':chapter.id==='clock'?'Focus':'Music'}</a>)}</nav>
+  </div>
+  <div class="story-chapters">{chapters.map(chapter=><article class="story-chapter" id={chapter.id} data-story={chapter.id}><span class="story-number">{chapter.number}</span><p class="eyebrow">{chapter.kicker}</p><h3>{chapter.title}</h3><p>{chapter.description}</p><button class="feature-action" data-chapter={chapter.id}>{chapter.action}<Icon size={17}/></button></article>)}</div>
+ </div>
+</section>
+<script>import '../scripts/product-tour';</script>

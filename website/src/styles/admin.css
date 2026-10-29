@@ -1,0 +1,24 @@
+.admin-shell{width:min(1280px,100% - 64px);margin:auto;min-height:100svh;display:flex;flex-direction:column}
+.admin-header{display:flex;align-items:center;gap:28px;padding:28px 0;border-bottom:1px solid #303746}
+.admin-header>a:last-child{margin-left:auto;color:#c9b4ff;text-decoration:none;font-size:13px}
+.admin-badge{font:10px "Cascadia Code",Consolas,monospace;color:#91dece;letter-spacing:.12em;border:1px solid #325c58;border-radius:20px;padding:8px 11px}
+.admin-shell main{padding:42px 0 60px;flex:1}
+.admin-title{display:flex;align-items:center;gap:30px}.admin-title h1{font-size:clamp(36px,4vw,58px);line-height:1;letter-spacing:-.06em;margin:0}
+.admin-title p{color:#a1abc1;line-height:1.6;max-width:65ch}
+.admin-title button{width:auto;padding:0 22px;margin-left:auto;white-space:nowrap}
+.admin-status{padding:20px 0;color:#a9c9c2;font-size:13px;min-height:60px}
+.admin-signin{display:inline-block;color:#d3beff;padding:15px 0}
+.admin-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:10px 0 28px}
+.admin-stats article{padding:24px;border:1px solid #3b4056;border-radius:19px;background:linear-gradient(135deg,#242237,#141e27)}
+.admin-stats span{display:block;font:10px "Cascadia Code",Consolas,monospace;letter-spacing:.1em;color:#bba7e6}
+.admin-stats strong{display:block;font-size:38px;margin:17px 0 8px;letter-spacing:-.05em}.admin-stats small{color:#a3aec3}
+.admin-table-wrap{overflow:auto;border:1px solid #363e51;border-radius:17px;background:#141924}
+table{width:100%;border-collapse:collapse;font-size:13px;text-align:left}caption{text-align:left;padding:21px;font-weight:650;color:#e4ddf4;border-bottom:1px solid #343c50}
+th{color:#b2b9cc;font-size:11px;font-weight:500;padding:15px 20px;background:#1b2130;white-space:nowrap}
+td{padding:20px;color:#d6dceb;border-top:1px solid #293246;white-space:nowrap}td:first-child{font-weight:600}
+.admin-empty{text-align:center!important;color:#9faec2;padding:45px}
+.admin-pagination{display:flex;align-items:center;gap:22px;justify-content:flex-end;margin-top:22px;font-size:12px;color:#a7b4c9}
+.admin-pagination button{padding:9px 14px;background:#20283a;color:#e3dcf3;border:1px solid #414c66;border-radius:9px}
+.admin-pagination button:disabled{opacity:.4}
+.admin-footer{display:flex;justify-content:space-between;gap:20px;padding:23px 0;border-top:1px solid #303746;color:#8895ab;font-size:11px}
+@media(max-width:700px){.admin-shell{width:calc(100% - 36px)}.admin-header{gap:12px;flex-wrap:wrap}.admin-badge{display:none}.admin-title{display:block}.admin-title button{margin:12px 0}.admin-stats{grid-template-columns:1fr}.admin-stats article{padding:20px}.admin-footer{flex-direction:column}.admin-shell main{padding-top:20px}}

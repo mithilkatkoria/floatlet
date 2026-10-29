@@ -28,7 +28,9 @@ for ($attempt=0; $attempt -lt 12; $attempt++) {
     }
 }
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'uninstall.ps1') -Destination $install -Force
-Set-Content -LiteralPath (Join-Path $install 'installed.marker') -Value 'Floatlet 0.7.0'
+$authConfig=Join-Path $Source 'auth.json'
+if (Test-Path -LiteralPath $authConfig) { Copy-Item -LiteralPath $authConfig -Destination (Join-Path $install 'auth.json') -Force }
+Set-Content -LiteralPath (Join-Path $install 'installed.marker') -Value 'Floatlet 0.8.0'
 $shell=New-Object -ComObject WScript.Shell
 $shortcut=$shell.CreateShortcut((Join-Path ([Environment]::GetFolderPath('Programs')) 'Floatlet.lnk'))
 $shortcut.TargetPath=$target
@@ -36,6 +38,13 @@ $shortcut.WorkingDirectory=$install
 $shortcut.IconLocation=$target+',0'
 $shortcut.Description='Native Windows island for music, a file tray, timers and calendar'
 $shortcut.Save()
+$settingsShortcut=$shell.CreateShortcut((Join-Path ([Environment]::GetFolderPath('Programs')) 'Floatlet Settings.lnk'))
+$settingsShortcut.TargetPath=$target
+$settingsShortcut.Arguments='--settings'
+$settingsShortcut.WorkingDirectory=$install
+$settingsShortcut.IconLocation=$target+',0'
+$settingsShortcut.Description='Configure Floatlet appearance, search and connections'
+$settingsShortcut.Save()
 foreach ($oldName in @('Delight Island.lnk','Delay Island.lnk','Luma Island.lnk','Glide Island.lnk')) {
     $oldLink=Join-Path ([Environment]::GetFolderPath('Programs')) $oldName
     if ((Test-Path -LiteralPath $oldLink) -and $shell.CreateShortcut($oldLink).TargetPath -in (@($target)+$oldTargets)) { Remove-Item -LiteralPath $oldLink }

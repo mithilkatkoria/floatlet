@@ -3,12 +3,24 @@
 #include "ui/spring.h"
 #include "ui/hover_controls.h"
 #include "services/artwork.h"
+#include "services/call_latch.h"
 #include <iostream>
 #include <cstdlib>
 using namespace delight;
 int checks=0;
 void require(bool ok) { ++checks; if(!ok) { std::cerr<<"Failed check "<<checks<<'\n'; std::exit(1); } }
 int main() {
+    CallLatch call;
+    require(call.update(true,false,true,true,1000));
+    require(call.update(false,false,true,true,1001));
+    require(call.update(false,false,true,true,30999));
+    require(!call.update(false,false,true,true,31000));
+    require(call.update(true,false,true,true,32000));
+    require(!call.update(false,true,true,true,32001));
+    require(call.update(true,false,true,true,33000));
+    require(!call.update(false,false,false,true,33001));
+    require(call.update(true,false,true,true,34000));
+    require(!call.update(false,false,true,false,34001));
     require(hoverTransport(166,41)==0);require(hoverTransport(204,41)==1);require(hoverTransport(242,41)==2);
     require(hoverTransport(147,41)==-1);require(hoverTransport(184,41)==-1);require(hoverTransport(222,41)==-1);require(hoverTransport(260,41)==-1);require(hoverTransport(166,23)==-1);require(hoverTransport(166,56)==-1);
     Spring spring;spring.snap(224,0);

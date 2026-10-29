@@ -1,2 +1,2 @@
 import { defineConfig } from 'astro/config';
-export default defineConfig({ output:'static', trailingSlash:'always', site:process.env.SITE_ORIGIN || 'https://floatlet.vercel.app', vite:{build:{assetsInlineLimit:0}}, server:{port:4321}, devToolbar:{enabled:false} });
+export default defineConfig({ output:'static', integrations:[{name:'private-account-preview',hooks:{'astro:build:done':async({dir})=>{const {rm}=await import('node:fs/promises');for(const page of ['account','admin'])await rm(new URL(page+'/',dir),{recursive:true,force:true});}}}], trailingSlash:'always', site:process.env.SITE_ORIGIN || 'https://floatlet.vercel.app', vite:{build:{assetsInlineLimit:0}}, server:{port:4321}, devToolbar:{enabled:false} });

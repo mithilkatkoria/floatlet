@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.0 - 2026-10-28
+
+- Refined native Search with borderless icons, keyboard selection and bounded local indexing.
+- Added a standalone settings window and custom timer controls.
+- Updated the island presentation and bundled fonts.
+- Rebuilt public packages without personal source-folder paths, with draey.dev credits.
+- Remains a free, account-free, unsigned x64 preview. Call controls and multi-monitor behavior still depend on the device and app.
+
 ## 0.7.0 - Native Search and refreshed island
 
 - Add the local Search experience, app-first results, customizable shortcut, file actions and optional Everything provider.

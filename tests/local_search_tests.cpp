@@ -11,7 +11,8 @@ int main(int argc,char** argv){if(argc>1&&std::string(argv[1])=="--personal-audi
     auto wait=[&](LocalIndex& index,const std::wstring& query,size_t count){for(int i=0;i<400;++i){auto results=index.query(query,1,generation,status);if(results.size()==count&&status.find(L"Updating")==status.npos)return results;Sleep(10);}throw std::runtime_error("Index timeout");};
     {
         LocalIndex index([&]{++notifications;});index.configure(true,{files.wstring()},root/L"index.bin");
-        auto found=wait(index,L"budget",1);require(found[0].title==L"Budget 2026.txt"&&found[0].kind==Kind::File);require(index.query(L"Projects Budget",1,generation,status).size()==1);require(index.query(L"CAF\u00c9",1,generation,status).size()==1);require(index.query(L"Original contents",1,generation,status).empty());require(index.query(L"budget",2,generation,status).empty());require(std::filesystem::exists(root/L"index.bin"));
+        for(int attempt=0;attempt<400&&notifications.load()==0;++attempt)Sleep(10);require(notifications.load()>0); // Configuration prewarms without a first query.
+        auto found=wait(index,L"budget",1);require(found[0].title==L"Budget 2026.txt"&&found[0].kind==Kind::File);require(index.query(L"Projects Budget",1,generation,status).size()==1);auto folders=index.query(L"Projects",1,generation,status);require(std::any_of(folders.begin(),folders.end(),[](auto& r){return r.kind==Kind::Folder&&r.title==L"Projects";}));require(index.query(L"CAF\u00c9",1,generation,status).size()==1);require(index.query(L"Original contents",1,generation,status).empty());require(index.query(L"budget",2,generation,status).empty());require(std::filesystem::exists(root/L"index.bin"));
         std::filesystem::rename(files/L"Projects"/L"Budget 2026.txt",files/L"Projects"/L"Renamed.txt");index.refresh(true);wait(index,L"renamed",1);require(index.query(L"budget",1,generation,status).empty());
         std::filesystem::remove(files/L"Projects"/L"Renamed.txt");require(index.query(L"renamed",1,generation,status).empty());index.refresh(true);wait(index,L"renamed",0);
         index.configure(false);require(index.query(L"caf",1,generation,status).empty());
@@ -23,7 +24,16 @@ int main(int argc,char** argv){if(argc>1&&std::string(argv[1])=="--personal-audi
     {LocalIndex index;index.configure(true,{files.wstring()},root/L"index.bin");require(wait(index,L"caf",1).size()==1);}
     // Larger fixture exercises capped results and measures query time separately from initial scan.
     for(int i=0;i<3000;++i)std::ofstream(files/(L"item-"+std::to_wstring(i)+L".txt"));
-    {LocalIndex index;index.configure(true,{files.wstring()});wait(index,L"item-",80);auto start=GetTickCount64();for(int i=0;i<100;++i)require(!index.query(L"item-29",1,generation,status).empty());std::cout<<"Mean query ms (3,000 files): "<<double(GetTickCount64()-start)/100<<'\n';index.configure(false);}
+    {LocalIndex index;auto scanStart=GetTickCount64();index.configure(true,{files.wstring()});wait(index,L"item-",80);std::cout<<"Initial scan ms (3,000 files): "<<GetTickCount64()-scanStart<<'\n';auto start=GetTickCount64();for(int i=0;i<100;++i)require(!index.query(L"item-29",1,generation,status).empty());std::cout<<"Mean query ms (3,000 files): "<<double(GetTickCount64()-start)/100<<'\n';index.configure(false);}
+    // A new scope must cancel an in-flight scan without retaining the old entries or handles.
+    auto other=root/L"other";std::filesystem::create_directories(other);std::ofstream(other/L"Only new scope.txt")<<"new";
+    DWORD before=0,after=0;GetProcessHandleCount(GetCurrentProcess(),&before);
+    {LocalIndex index;for(int i=0;i<10;++i){index.configure(true,{files.wstring()});index.configure(true,{other.wstring()});require(wait(index,L"Only new scope",1).size()==1);require(index.query(L"item-",1,generation,status).empty());}index.configure(false);}
+    GetProcessHandleCount(GetCurrentProcess(),&after);require(after<=before+2);
+    {LocalIndex index;index.configure(true,{(root/L"missing").wstring()});wait(index,L"missing",0);require(status.find(L"Some locations unavailable")!=std::wstring::npos);}
+    // Directory links may appear as results, but must never recurse back into the index.
+    std::error_code linkError;std::filesystem::create_directory_symlink(files,files/L"loop",linkError);
+    if(!linkError){LocalIndex index;index.configure(true,{files.wstring()});auto loops=wait(index,L"loop",1);require(loops[0].kind==Kind::Folder);}
     require(notifications>=3);require(std::filesystem::exists(files/L"Caf\u00e9.txt"));
     std::filesystem::remove_all(root);std::cout<<checks<<" built-in index and shortcut checks passed\n";
 }catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

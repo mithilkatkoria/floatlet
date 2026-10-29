@@ -11,3 +11,6 @@
 calendar.bin
 settings.json
 review-settings.json
+/supabase/.temp/
+/supabase/.branches/
+/supabase/functions/.env*

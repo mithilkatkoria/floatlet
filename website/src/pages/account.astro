@@ -1,0 +1,69 @@
+---
+import '../styles/account.css';
+const url=import.meta.env.PUBLIC_SUPABASE_URL || '';
+const key=import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
+---
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <meta name="theme-color" content="#0b0d13" />
+  <title>Your account | Floatlet</title>
+  <meta name="description" content="Create or sign in to your Floatlet account." />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+</head>
+<body>
+  <a class="skip" href="#account-form">Skip to account form</a>
+  <div class="account-shell" id="account-app" data-url={url} data-key={key}>
+    <aside class="account-story" aria-label="About Floatlet">
+      <a class="account-brand" href="/"><img src="/favicon.svg" width="38" height="38" alt="" /> floatlet</a>
+      <div class="story-main">
+        <span class="story-index">FLOATLET  /  YOUR SPACE</span>
+        <h1>A little more room for <em>everything.</em></h1>
+        <p>Music, files, search and the moments that matter, all a little closer on your Windows desktop.</p>
+        <div class="story-island" aria-hidden="true"><span class="album">♪</span><span><strong>Floatlet radio</strong><small>Now playing</small></span><span class="play">▶</span></div>
+      </div>
+      <div class="story-foot"><span>FREE TO USE</span><span>OPEN SOURCE</span><span>WINDOWS 10 + 11</span></div>
+    </aside>
+    <main class="account-main">
+      <div class="account-top"><span class="account-dot"></span> YOUR FLOATLET ACCOUNT <a href="/">Back to site ↗</a></div>
+      <section class="account-panel">
+        <div class="panel-mark">F<span></span></div>
+        <p class="eyebrow">WELCOME TO FLOATLET</p>
+        <h2 id="form-heading">Create your space.</h2>
+        <p class="intro" id="form-intro">A free account to make Floatlet yours. No subscription.</p>
+        <div id="setup-state" class="setup-state" hidden>Account registration is being prepared. The current Windows preview remains available without signing in. <a href="/download/">Get the preview ↗</a></div>
+        <div id="signed-in" class="signed-in" hidden>
+          <div class="identity"><span class="identity-check">✓</span><span><strong>You're signed in</strong><small id="signed-in-email"></small></span></div>
+          <p>Your Floatlet account is ready. Desktop account linking will be enabled when the next Windows release is connected.</p>
+          <button id="sign-out" class="secondary-button" type="button">Sign out</button>
+        </div>
+        <div id="auth-controls">
+          <div class="mode-tabs" role="group" aria-label="Account action">
+            <button type="button" id="mode-create" aria-pressed="true">Create account</button>
+            <button type="button" id="mode-signin" aria-pressed="false">Sign in</button>
+          </div>
+          <button id="google-signin" class="google-button" type="button"><svg aria-hidden="true" width="19" height="19" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5Z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.27 5.48-4.8 7.18l7.73 6C44.39 38.03 46.98 31.68 46.98 24.55Z"/><path fill="#FBBC05" d="M10.53 28.59A14.4 14.4 0 0 1 9.75 24c0-1.59.27-3.13.76-4.59l-7.98-6.2A23.9 23.9 0 0 0 0 24c0 3.87.93 7.51 2.56 10.78l7.97-6.19Z"/><path fill="#34A853" d="M24 48c6.48 0 11.92-2.13 15.89-5.8l-7.73-6c-2.14 1.44-4.88 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.97 6.19C6.51 42.62 14.62 48 24 48Z"/></svg> Continue with Google</button>
+          <div class="divider"><span>OR WITH EMAIL</span></div>
+          <form id="account-form" aria-labelledby="form-heading" aria-describedby="account-status" novalidate>
+            <div id="email-wrap"><label for="account-email">Email address</label>
+            <input id="account-email" name="email" type="email" autocomplete="email" inputmode="email" required placeholder="you@example.com" /></div>
+            <div class="label-row"><label for="account-password">Password</label><button type="button" id="password-visibility" aria-label="Show password">Show</button></div>
+            <input id="account-password" name="password" type="password" autocomplete="new-password" required minlength="15" placeholder="At least 15 characters" />
+            <div id="strength" class="strength" aria-live="polite"><span></span><span></span><span></span><span></span><small>Use at least 15 characters. A long passphrase works well.</small></div>
+            <div id="confirm-wrap"><label for="account-confirm">Confirm password</label><input id="account-confirm" name="confirm" type="password" autocomplete="new-password" required placeholder="Repeat your password" /></div>
+            <button id="account-submit" class="submit-button" type="submit">Create free account <span>↗</span></button>
+          </form>
+          <button id="password-recovery" class="recovery-button" type="button" hidden>Forgot your password?</button>
+          <p id="account-status" class="account-status" role="status" aria-live="polite"></p>
+          <p class="legal-note">By creating an account you agree to the <a href="/terms/">Terms</a> and <a href="/privacy/">Privacy notice</a>.</p>
+        </div>
+      </section>
+      <div class="account-bottom"><span>Small surface. Open project.</span><a href="https://github.com/mithilkatkoria/floatlet">Explore the source ↗</a></div>
+    </main>
+  </div>
+  <script>import '../scripts/account';</script>
+</body>
+</html>

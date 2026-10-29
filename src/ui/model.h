@@ -7,18 +7,18 @@
 #include <vector>
 
 namespace delight {
-enum class State { Collapsed, Peek, Music, Shelf, Controls, Timer, Preferences, SearchPreferences, Call, Agenda, Calendar, Screenshots, Wifi, DragOver, DraggingOut, Hidden, Unavailable };
+enum class State { Collapsed, Peek, IncomingCall, Music, Shelf, Controls, Timer, Preferences, SearchPreferences, Call, Agenda, Calendar, Screenshots, Wifi, DragOver, DraggingOut, Hidden, Unavailable };
 enum class Event { Hover, Leave, Open, Escape, Hide, Show, DragEnter, DragLeave, DragStart, DragEnd, Suspend, Resume };
 struct Model {
     State state = State::Collapsed, last = State::Music, returnState = State::Collapsed;
     bool pinned = false;
-    bool expanded() const { return state == State::Music || state == State::Shelf || state == State::Controls || state == State::Calendar || state == State::Screenshots || state == State::Wifi || state == State::Timer || state == State::Preferences || state == State::SearchPreferences || state == State::Agenda || state == State::Call; }
+    bool expanded() const { return state == State::IncomingCall || state == State::Music || state == State::Shelf || state == State::Controls || state == State::Calendar || state == State::Screenshots || state == State::Wifi || state == State::Timer || state == State::Preferences || state == State::SearchPreferences || state == State::Agenda || state == State::Call; }
     void panel(State s) { if (s == State::Music || s == State::Shelf || s == State::Controls || s == State::Calendar || s == State::Screenshots || s == State::Wifi || s == State::Timer || s == State::Preferences || s == State::SearchPreferences || s == State::Agenda || s == State::Call) state = last = s; }
     void send(Event e) {
         if (e == Event::Hide) { state = State::Hidden; pinned = false; return; }
         if (e == Event::Suspend) { state = State::Unavailable; return; }
         if (e == Event::Show || e == Event::Resume) { if(state != State::Hidden || e == Event::Show) state = State::Collapsed; return; }
-        if(state == State::Hidden || state == State::Unavailable) return;
+        if(state == State::Hidden || state == State::Unavailable || state == State::IncomingCall) return;
         if(e == Event::DragEnter || e == Event::DragStart) {
             if(state != State::DragOver && state != State::DraggingOut) returnState = state;
             state = e == Event::DragEnter ? State::DragOver : State::DraggingOut; return;
@@ -37,6 +37,7 @@ struct Model {
 struct Size { float w, h; };
 inline Size sizeFor(State s, bool touch = false) {
     switch(s) {
+    case State::IncomingCall: return {342,88};
     case State::Peek: return {272,56};
     case State::Music: return {344,154};
     case State::Shelf: case State::DragOver: case State::DraggingOut: return {356,196};

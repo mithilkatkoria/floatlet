@@ -31,8 +31,35 @@ class LocalIndex {
     void run(){Watches watches;SetThreadPriority(GetCurrentThread(),THREAD_MODE_BACKGROUND_BEGIN);for(;;){unsigned r;std::vector<std::wstring> locations;std::filesystem::path file;bool load,force;{std::unique_lock lock(mutex);wake.wait(lock,[&]{return stop||pending;});if(stop)break;pending=false;if(!enabled){watches.clear();continue;}r=revision;locations=roots;file=cache;load=!snapshot;force=forced;forced=false;building=true;error.clear();}
         try{bool modified=watches.dirty();if(watches.version!=r){watches.clear();watches.version=r;for(auto& root:locations){auto h=FindFirstChangeNotificationW(root.c_str(),TRUE,FILE_NOTIFY_CHANGE_FILE_NAME|FILE_NOTIFY_CHANGE_DIR_NAME);if(h!=INVALID_HANDLE_VALUE)watches.handles.push_back(h);}modified=true;}if(watches.handles.size()!=locations.size())modified=true;if(!load&&!force&&!modified){std::shared_ptr<const Snapshot> unchanged;{std::lock_guard lock(mutex);if(current(r)){building=false;unchanged=snapshot;}}if(unchanged)publish(unchanged,r);continue;}
             if(load&&!file.empty()){auto saved=read(file,r);if(!saved->entries.empty()){std::error_code ageError;auto modifiedAt=std::filesystem::last_write_time(file,ageError);auto age=std::filesystem::file_time_type::clock::now()-modifiedAt;bool recent=!ageError&&age>=decltype(age)::zero()&&age<std::chrono::minutes(2);publish(saved,r);if(recent&&!force){std::shared_ptr<const Snapshot> currentData;{std::lock_guard lock(mutex);if(current(r)){building=false;currentData=snapshot;}}if(currentData)publish(currentData,r);continue;}}}
-            auto data=std::make_shared<Snapshot>();size_t bytes=0,visited=0;for(auto& root:locations){std::error_code ec;if(!append(*data,root,NoParent,true,true,bytes))break;std::vector<uint32_t> parents{uint32_t(data->entries.size()-1)};auto flags=std::filesystem::directory_options::skip_permission_denied;std::filesystem::recursive_directory_iterator it(root,flags,ec),end;if(ec){++data->skipped;continue;}while(it!=end&&current(r)&&!data->limited){auto name=it->path().filename().wstring();auto path=it->path().wstring();DWORD attrs=GetFileAttributesW(path.c_str());if(attrs==INVALID_FILE_ATTRIBUTES){++data->skipped;it.disable_recursion_pending();}else{bool directory=(attrs&FILE_ATTRIBUTE_DIRECTORY)!=0;if(directory&&(attrs&FILE_ATTRIBUTE_REPARSE_POINT))it.disable_recursion_pending();if(it.depth()>=64){it.disable_recursion_pending();++data->skipped;}auto depth=size_t(it.depth());if(depth>=parents.size()){++data->skipped;it.disable_recursion_pending();}else if(!append(*data,std::move(name),parents[depth],directory,false,bytes))break;else if(directory){if(parents.size()<=depth+1)parents.resize(depth+2);parents[depth+1]=uint32_t(data->entries.size()-1);}}it.increment(ec);if(ec){++data->skipped;ec.clear();}if(++visited%256==0){std::unique_lock lock(mutex);wake.wait_for(lock,std::chrono::milliseconds(8),[&]{return stop||!current(r);});}}
-                if(!current(r)||data->limited)break;}
+            auto data=std::make_shared<Snapshot>();size_t bytes=0,visited=0;
+            // Enumeration already supplies attributes. Avoid a second filesystem request per item.
+            // RAII closes every directory handle, including cancellation and inaccessible folders.
+            struct FindHandle {HANDLE value;~FindHandle(){if(value!=INVALID_HANDLE_VALUE)FindClose(value);}};
+            auto scan=[&](auto&& self,const std::wstring& directory,uint32_t parent,unsigned depth)->void{
+                if(!current(r)||data->limited)return;
+                auto pattern=directory+(directory.ends_with(L"\\")?L"":L"\\")+L"*";
+                WIN32_FIND_DATAW entry{};
+                FindHandle handle{FindFirstFileExW(pattern.c_str(),FindExInfoBasic,&entry,FindExSearchNameMatch,nullptr,FIND_FIRST_EX_LARGE_FETCH)};
+                if(handle.value==INVALID_HANDLE_VALUE){if(GetLastError()!=ERROR_FILE_NOT_FOUND)++data->skipped;return;}
+                do{
+                    if(!current(r)||data->limited)break;
+                    if(wcscmp(entry.cFileName,L".")==0||wcscmp(entry.cFileName,L"..")==0)continue;
+                    const bool folder=(entry.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)!=0;
+                    if(!append(*data,entry.cFileName,parent,folder,false,bytes))break;
+                    if(folder&&!(entry.dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT)){
+                        if(depth<64){auto path=directory+(directory.ends_with(L"\\")?L"":L"\\")+entry.cFileName;self(self,path,uint32_t(data->entries.size()-1),depth+1);}
+                        else ++data->skipped;
+                    }
+                    if(++visited%2048==0){std::unique_lock lock(mutex);wake.wait_for(lock,std::chrono::milliseconds(2),[&]{return stop||!current(r);});}
+                    SetLastError(ERROR_SUCCESS);
+                }while(FindNextFileW(handle.value,&entry));
+                auto failure=GetLastError();if(failure!=ERROR_SUCCESS&&failure!=ERROR_NO_MORE_FILES)++data->skipped;
+            };
+            for(auto& root:locations){
+                if(!current(r)||!append(*data,root,NoParent,true,true,bytes))break;
+                scan(scan,root,uint32_t(data->entries.size()-1),0);
+                if(data->limited)break;
+            }
             if(current(r)){write(*data,file,r);{std::lock_guard lock(mutex);if(current(r))building=false;}publish(data,r);}
         }catch(...){std::function<void()> callback;{std::lock_guard lock(mutex);if(current(r)){error=L"Index could not finish. Press Ctrl+R to retry.";building=false;callback=changed;}}if(callback)callback();}
     }SetThreadPriority(GetCurrentThread(),THREAD_MODE_BACKGROUND_END);}
@@ -41,7 +68,7 @@ public:
     ~LocalIndex(){{std::lock_guard lock(mutex);stop=true;++revision;}wake.notify_one();worker.join();}
     static std::vector<std::wstring> locations(unsigned scope){std::vector<std::wstring> out;if(scope==1){wchar_t drives[256]{};GetLogicalDriveStringsW(256,drives);for(auto p=drives;*p;p+=wcslen(p)+1)if(GetDriveTypeW(p)==DRIVE_FIXED)out.emplace_back(p);}else{for(auto id:{FOLDERID_Desktop,FOLDERID_Documents,FOLDERID_Downloads,FOLDERID_Pictures,FOLDERID_Music,FOLDERID_Videos}){PWSTR path=nullptr;if(SUCCEEDED(SHGetKnownFolderPath(id,KF_FLAG_DONT_VERIFY,nullptr,&path))){std::wstring value(path);CoTaskMemFree(path);if(value.starts_with(L"\\\\"))continue;bool nested=false;auto key=fold(value)+L"\\";for(auto& old:out)if(key.starts_with(fold(old)+L"\\"))nested=true;if(!nested){std::erase_if(out,[&](auto& old){return (fold(old)+L"\\").starts_with(key);});out.push_back(std::move(value));}}}}return out;}
     static std::filesystem::path cacheFile(unsigned scope){PWSTR path=nullptr;if(FAILED(SHGetKnownFolderPath(FOLDERID_LocalAppData,0,nullptr,&path)))return {};std::filesystem::path result=std::filesystem::path(path)/L"DelightIsland"/(scope?L"search-local-drives.v1":L"search-personal.v1");CoTaskMemFree(path);return result;}
-    void configure(bool on,std::vector<std::wstring> locations={},std::filesystem::path file={}){std::lock_guard lock(mutex);if(enabled==on&&roots==locations&&cache==file)return;++revision;enabled=on;roots=std::move(locations);cache=std::move(file);snapshot.reset();requested=0;building=false;pending=!on;error.clear();wake.notify_one();}
+    void configure(bool on,std::vector<std::wstring> locations={},std::filesystem::path file={}){std::lock_guard lock(mutex);if(enabled==on&&roots==locations&&cache==file)return;++revision;enabled=on;roots=std::move(locations);cache=std::move(file);snapshot.reset();requested=on?GetTickCount64():0;building=false;pending=true;forced=false;error.clear();wake.notify_one();}
     void refresh(bool force=false){std::lock_guard lock(mutex);if(!enabled||building||pending)return;auto now=GetTickCount64();if(!force&&requested&&now-requested<120000)return;requested=now;forced=force;pending=true;wake.notify_one();}
     std::vector<Result> query(const std::wstring& query,unsigned expected,const std::atomic<unsigned>& latest,std::wstring& status){refresh();std::shared_ptr<const Snapshot> data;{std::lock_guard lock(mutex);data=snapshot;status=error.empty()?L"Floatlet index: "+std::to_wstring(data?data->entries.size():0)+L" items"+(building||pending?L". Updating...":L". Ctrl+R to refresh."):error;if(data&&data->limited)status+=L" Index full: some files missing. Use Everything for larger collections.";if(data&&data->skipped)status+=L" Some locations unavailable.";}std::vector<Result> results;if(!data)return results;auto parts=tokens(query);if(parts.empty())return results;for(uint32_t i=0;i<data->entries.size();++i){if(expected!=latest.load())return {};auto& e=data->entries[i];if(e.root)continue;bool matches=true;for(auto& token:parts){bool found=false;for(auto p=i;p!=NoParent;p=data->entries[p].parent)if(data->entries[p].lower.find(token)!=std::wstring::npos){found=true;break;}if(!found){matches=false;break;}}if(!matches)continue;Result r;r.target=fullPath(*data,i);r.id=r.target;r.title=e.name;auto split=r.target.find_last_of(L"\\/");r.detail=r.target.substr(0,split);r.kind=e.directory?Kind::Folder:Kind::File;r.score=rank(r,query,false);if(r.score)results.push_back(std::move(r));if(results.size()>=160)sort(results);}sort(results);std::erase_if(results,[](auto& r){return GetFileAttributesW(r.target.c_str())==INVALID_FILE_ATTRIBUTES;});return results;}
 };
