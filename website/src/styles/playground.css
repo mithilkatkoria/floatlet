@@ -43,10 +43,10 @@
 .timer-progress{display:none;position:absolute;left:50%;top:3px;transform:translateX(-50%);width:172px;height:172px;border-radius:50%;background:conic-gradient(#ff9f38 var(--progress,360deg),#362413 0);mask:radial-gradient(transparent 66%,#000 67%)}
 #island-demo[data-clock-started=true][data-clock-mode=timer] .timer-progress{display:block}
 #island-demo[data-alert=true] .timer-progress{display:none}
-#island-demo #exact-timer-form{inset:77px 12px 12px;padding:9px 12px 0;background:#080909;border:0;border-radius:0}
+#island-demo #exact-timer-form{inset:92px 12px 12px;padding:5px 12px 0;background:#080909;border:0;border-radius:0}
 #island-demo .exact-heading{justify-content:center;font-size:21px}
 #island-demo .exact-heading strong{font-size:21px;font-weight:400}
-.exact-subtitle{text-align:center;margin:8px 0 22px;font-size:12px;color:#aaa}
+.exact-subtitle{text-align:center;margin:8px 0 12px;font-size:12px;color:#aaa}
 #island-demo .exact-fields{gap:13px;margin-top:0}
 #island-demo .exact-fields label{position:relative;display:flex;flex:1;flex-direction:column;align-items:center;background:#10100e;border:1px solid transparent;border-radius:16px;height:100px}
 #island-demo .exact-fields label:focus-within{border-color:#bf7837;background:#251b11}
@@ -54,7 +54,7 @@
 #island-demo .exact-fields button{border:0;background:none;color:#ffac58;height:27px;min-height:27px;width:100%;font-size:19px;padding:0}
 #island-demo .exact-fields input{appearance:textfield;margin:0;border:0;outline:none;background:none;color:#ffac58;font-size:32px;padding:0;height:46px;border-radius:0;font-variant-numeric:tabular-nums}
 #island-demo .exact-fields input::-webkit-inner-spin-button{appearance:none}
-#island-demo #timer-error{text-align:center;font-size:10px;min-height:15px;margin:35px 0 13px;color:#b8b8ba}
+#island-demo #timer-error{text-align:center;font-size:10px;min-height:15px;margin:28px 0 13px;color:#b8b8ba}
 .exact-actions{display:flex;gap:12px}
 .exact-actions button{border:0;border-radius:24px;min-height:40px;background:#202020;color:#ddd;font-size:12px;width:36%}
 .exact-actions button[type=submit]{flex:1;background:#33200e;color:#ffac58;font-size:14px}
