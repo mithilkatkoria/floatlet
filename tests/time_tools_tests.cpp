@@ -1,4 +1,6 @@
 #include "ui/time_tools.h"
+#include "ui/island_activity.h"
+#include "ui/duration_editor.h"
 #include "ui/countdown.h"
 #include "services/chime.h"
 #include "services/calendar_reminders.h"
@@ -8,6 +10,20 @@ using namespace delight;
 int main(){int checks=0;auto check=[&](bool b){++checks;if(!b)throw std::runtime_error("time tools assertion failed");};try{
     Stopwatch sw;check(sw.text(100)==L"00:00");sw.toggle(1000);check(sw.elapsed(2500)==1500);check(sw.preciseText(2509)==L"00:01.50");sw.toggle(3500);check(sw.elapsed(100000)==2500);sw.toggle(200000);check(sw.elapsed(202500)==5000);sw.reset();check(!sw.running&&sw.elapsed(999999)==0);
     Countdown timer;timer.start(300,1000);check(timer.text(1000)==L"5:00");timer.pause(2000);check(timer.left(900000)==299000);timer.resume(1000000);check(!timer.tick(1298999));check(timer.tick(1299000));check(!timer.tick(1299001));check(timer.finished&&timer.fraction(1300000)==0);timer.cancel();check(!timer.finished&&!timer.active());
+    DurationEditor editor;editor.begin(2735);check(editor.parts[0]==0&&editor.parts[1]==45&&editor.parts[2]==35&&editor.seconds()==2735);
+    editor.select(0);editor.digit(2);editor.digit(4);check(editor.seconds()==86400);editor.step(1);check(editor.seconds()==86400);
+    editor.select(2);editor.digit(5);editor.digit(9);check(editor.parts[0]==23&&editor.parts[2]==59);editor.step(1);check(editor.parts[2]==59);
+    editor.select(1);editor.digit(9);editor.digit(9);check(editor.parts[1]==9);editor.erase();check(editor.parts[1]==0);
+    editor.begin(1);editor.select(2);editor.step(-1);check(editor.seconds()==0);editor.step(-1);check(editor.seconds()==0);
+    editor.begin(3661);check(durationText(editor.seconds())==L"1:01:01");check(durationText(86400)==L"24:00:00");
+    Countdown expired;expired.start(1,100);expired.pause(1100);check(expired.finished&&!expired.active());expired.resume(2000);check(!expired.running);
+    Countdown longTimer;longTimer.start(3661,0);check(longTimer.text(0)==L"1:01:01");longTimer.pause(1000);longTimer.resume(999000);check(longTimer.left(999000)==3660000);
+    for(int flags=0;flags<16;++flags){Activities a{bool(flags&1),bool(flags&2),bool(flags&4),bool(flags&8)};
+        for(int preferred=0;preferred<5;++preferred){auto p=IslandActivity(preferred);auto chosen=chooseActivity(p,a);bool available=preferred>0&&(flags&(1<<(preferred-1)));
+            if(available)check(chosen==p);else check(chosen==((flags&8)?IslandActivity::Call:(flags&2)?IslandActivity::Timer:(flags&4)?IslandActivity::Stopwatch:(flags&1)?IslandActivity::Music:IslandActivity::Automatic));
+            a.timerAlert=true;check(chooseActivity(p,a)==IslandActivity::Timer);a.alarmAlert=true;check(chooseActivity(p,a)==IslandActivity::Alarm);a.alarmAlert=a.timerAlert=false;
+        }
+    }
     using namespace std::chrono;auto zone=current_zone();auto now=system_clock::now();auto local=zone->to_local(now);auto day=floor<days>(local);auto noon=zone->to_sys(local_seconds{day}+hours{12},choose::latest);
     Alarm alarm;alarm.hour=13;alarm.minute=15;alarm.arm(noon);check(alarm.armed&&alarm.due>noon);check(!alarm.tick(alarm.due-seconds{1}));check(alarm.tick(alarm.due));check(!alarm.tick(alarm.due+seconds{1}));check(!alarm.armed&&alarm.ringing);alarm.cancel();check(!alarm.ringing);
     alarm.hour=11;alarm.minute=0;alarm.arm(noon);check(floor<days>(zone->to_local(alarm.due))==day+days{1});check(alarm.text()==L"11:00");alarm.hour=0;alarm.minute=5;check(alarm.text()==L"00:05");

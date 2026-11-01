@@ -16,7 +16,7 @@ class SettingsWindow {
 public:
     enum Action { IconOnly=1, FollowPointer, Touch, ReduceMotion, Calls, AlignLeft, AlignCenter, AlignRight,
         SearchEnabled, SearchProvider, SearchApps, SearchFiles, SearchWindows,
-        SearchFuzzy, SearchOptions, Calendar, Startup, Website, SignOut };
+        SearchFuzzy, SearchOptions, Calendar, Startup, Website, SignOut, ActivityAuto=30, ActivityMusic, ActivityTimer, ActivityStopwatch, ActivityCall, IncomingAlerts };
     SettingsWindow(HWND,Settings& source,std::function<void(int)> action,std::wstring identity={}):settings(source),perform(std::move(action)),accountEmail(std::move(identity)){}
     ~SettingsWindow(){if(window)DestroyWindow(window);}
     HWND native()const{return window;}
@@ -47,7 +47,7 @@ private:
     static constexpr COLORREF ink=RGB(37,36,34),muted=RGB(117,114,108),edge=RGB(233,230,224),paper=RGB(255,255,254),warm=RGB(245,244,240),selected=RGB(237,234,226),accent=RGB(111,89,158);
     float scale()const{return window?GetDpiForWindow(window)/96.f:1.f;}
     float height()const{RECT r{};GetClientRect(window,&r);return r.bottom/scale();}
-    float maxScroll()const{return std::max(0.f,(page==0?710.f:page==2?750.f:720.f)-height());}
+    float maxScroll()const{return std::max(0.f,(page==0?710.f:page==2?750.f:page==4?810.f:720.f)-height());}
     int at(float x,float y)const{for(size_t i=0;i<hits.size();++i){auto item=hits[i];if(item.x>190&&(y<12||y>=height()-12))continue;if(x>=item.x&&x<item.x+item.w&&y>=item.y&&y<item.y+item.h)return int(i);}return -1;}
     void hit(float x,float y,float w,float h,int action,bool fixed=false){hits.push_back({x,y-(fixed?0:scroll),w,h,action});}
     void activate(int index){if(index<0||index>=int(hits.size()))return;int action=hits[index].action;if(action>=100){page=action-100;scroll=0;focus=-1;hover=-1;refresh();return;}perform(action);refresh();}
@@ -103,15 +103,15 @@ private:
             paint.begin(dc,bounds);paint.clear(warm);box(190,10,w-200,h-20,22,paper);
             box(24,26,15,28,6,ink);box(24,26,27,11,5,ink);box(27,39,19,8,4,ink);paint.ellipse(51*s,54*s,4*s,4*s,accent);
             text(L"Floatlet",65,28,112,21,ink,true);text(L"Your desktop companion",24,76,150,11,muted);
-            const wchar_t* tabs[]={L"Home",L"Appearance",L"Search",L"Connections"};
-            for(int i=0;i<4;++i){float y=126.f+i*48.f;bool active=page==i;if(active||hover==i)box(12,y,166,40,9,active?selected:RGB(239,237,231));icon(i,26,y+10,active?ink:muted);text(tabs[i],60,y+10,111,14,active?ink:muted,active);hit(12,y,166,40,100+i,true);}
+            const wchar_t* tabs[]={L"Home",L"Appearance",L"Search",L"Connections",L"Island activity"};
+            for(int i=0;i<5;++i){float y=126.f+i*48.f;bool active=page==i;if(active||hover==i)box(12,y,166,40,9,active?selected:RGB(239,237,231));icon(i==4?1:i,26,y+10,active?ink:muted);text(tabs[i],60,y+10,111,14,active?ink:muted,active);hit(12,y,166,40,100+i,true);}
             line(24,h-116,142);text(L"Free. Open source.",24,h-94,150,12,ink);text(L"made by draey.dev",24,h-66,150,11,muted);
             text(L"Floatlet for Windows",24,h-40,150,10,muted);
             paint.target->PushAxisAlignedClip(D2D1::RectF(194*s,12*s,(w-12)*s,(h-12)*s),D2D1_ANTIALIAS_MODE_ALIASED);
             paint.target->SetTransform(D2D1::Matrix3x2F::Translation(0,-scroll*s));
             float x=226,cw=w-x-38;
-            const wchar_t* titles[]={L"Welcome to Floatlet",L"Appearance",L"Search",L"Connections"};
-            const wchar_t* descriptions[]={L"A little less switching. A little more room to focus.",L"Make the island comfortable for the way you work.",L"Your apps, files and windows, one shortcut away.",L"Choose what belongs in your everyday setup."};
+            const wchar_t* titles[]={L"Welcome to Floatlet",L"Appearance",L"Search",L"Connections",L"Island activity"};
+            const wchar_t* descriptions[]={L"A little less switching. A little more room to focus.",L"Make the island comfortable for the way you work.",L"Your apps, files and windows, one shortcut away.",L"Choose what belongs in your everyday setup.",L"Keep the activity you care about in the resting island."};
             text(titles[page],x,40,cw,25,ink,true);text(descriptions[page],x,81,cw,14,muted);
             if(page==0){
                 bool wide=cw>=690;float main=wide?cw-236:cw;
@@ -150,6 +150,21 @@ private:
                 row(x,539,cw,L"Open windows",L"Switch to a running app",SearchWindows,settings.search.windows);
                 row(x,604,cw,L"Fuzzy matching",L"Include close matches when you mistype",SearchFuzzy,settings.search.fuzzy);
                 text(L"Advanced preferences and shortcut recording",x+18,689,cw-30,13,accent,true);hit(x,679,cw,35,SearchOptions);
+            }else if(page==4){
+                text(L"Prefer on the island",x,132,cw,18,ink,true);
+                text(L"When several activities are running, your choice stays in front.",x,164,cw,13,muted);
+                const wchar_t* names[]={L"Automatic",L"Music",L"Timer",L"Stopwatch",L"Calls"};
+                const wchar_t* detail[]={L"Calls, then timers, stopwatch and music",L"Keep your track visible, even during a call",L"Keep the remaining time within sight",L"Keep elapsed time in the resting island",L"Keep call and microphone controls in front"};
+                for(int i=0;i<5;++i){float y=207.f+i*72.f;bool active=int(settings.preferredActivity)==i;
+                    box(x,y,cw,64,12,active?selected:(hover==int(hits.size())?warm:paper));
+                    paint.outline((x+22)*s,(y+23)*s,18*s,18*s,9*s,active?ink:edge,1.5f*s);
+                    if(active)paint.ellipse((x+31)*s,(y+32)*s,5*s,5*s,ink);
+                    text(names[i],x+55,y+10,cw-76,14,ink,true);text(detail[i],x+55,y+34,cw-76,12,muted);hit(x,y,cw,64,ActivityAuto+i);
+                }
+                text(L"When your choice stops, another active item takes its place.",x+4,582,cw-8,12,muted);
+                row(x,621,cw,L"Incoming call alerts",L"Let a ringing call take priority",IncomingAlerts,settings.incomingCallAlerts);
+                text(L"Finished timers and alarms always alert you.",x+18,712,cw-36,13,ink,true);
+                text(L"These preferences change the display, not the running activities.",x+18,742,cw-36,12,muted);
             }else{
                 box(x,132,cw,111,14,warm);text(L"Connected, by choice.",x+22,147,cw-44,29,ink,false,true);text(L"Your settings and file references stay on this PC.",x+23,200,cw-46,13,muted);
                 text(L"Your connections",x,278,cw,17,ink,true);

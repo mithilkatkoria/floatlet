@@ -120,6 +120,19 @@ void Renderer::draw(float w,float h,float dpi,const std::vector<Line>& lines,boo
             else if(fraction>0){winrt::com_ptr<ID2D1Factory> f;dc->GetFactory(f.put());winrt::com_ptr<ID2D1PathGeometry> path;check_hresult(f->CreatePathGeometry(path.put()));winrt::com_ptr<ID2D1GeometrySink> sink;check_hresult(path->Open(sink.put()));sink->BeginFigure({x+s*.5f,y+s*.08f},D2D1_FIGURE_BEGIN_HOLLOW);float a=-1.5707963f+6.2831853f*fraction;sink->AddArc(D2D1::ArcSegment({x+s*(.5f+.42f*cosf(a)),y+s*(.5f+.42f*sinf(a))},{s*.42f,s*.42f},0,D2D1_SWEEP_DIRECTION_CLOCKWISE,fraction>.5f?D2D1_ARC_SIZE_LARGE:D2D1_ARC_SIZE_SMALL));sink->EndFigure(D2D1_FIGURE_END_OPEN);check_hresult(sink->Close());dc->DrawGeometry(path.get(),brush.get(),std::max(2.f,s*.045f));}
             dc->FillRoundedRectangle(D2D1::RoundedRect({x+s*.38f,y-s*.01f,x+s*.62f,y+s*.13f},s*.06f,s*.06f),brush.get());
             dc->DrawLine({x+s*.5f,y+s*.5f},{x+s*.68f,y+s*.34f},brush.get(),std::max(1.3f,s*.045f));if(alert)dc->SetTransform(before);break;}
+        case Glyph::DurationField:{
+            brush->SetColor(highContrast?color(fg):D2D1::ColorF(1.f,.62f,.26f));
+            brush->SetOpacity(mark.active?.12f:.035f);dc->FillRoundedRectangle(D2D1::RoundedRect({x,y,x+s,y+mark.height},16,16),brush.get());
+            if(mark.active){brush->SetOpacity(.75f);dc->DrawRoundedRectangle(D2D1::RoundedRect({x+.75f,y+.75f,x+s-.75f,y+mark.height-.75f},16,16),brush.get(),1.2f);}break;}
+        case Glyph::TimeAction:{
+            brush->SetColor(highContrast?color(fg):mark.active?D2D1::ColorF(1.f,.58f,.18f):D2D1::ColorF(.8f,.8f,.82f));
+            brush->SetOpacity(mark.active?.18f:.09f);dc->FillRoundedRectangle(D2D1::RoundedRect({x,y,x+s,y+mark.height},mark.height/2,mark.height/2),brush.get());break;}
+        case Glyph::TimerRing:{
+            const float cx=x+s*.5f,cy=y+s*.5f,r=s*.46f;
+            brush->SetColor(highContrast?color(fg):D2D1::ColorF(1.f,.60f,.22f));brush->SetOpacity(.15f);dc->DrawEllipse(D2D1::Ellipse({cx,cy},r,r),brush.get(),4);
+            brush->SetOpacity(1);const float fraction=std::clamp(mark.value,0.f,1.f);int count=int(ceilf(fraction*120));
+            for(int i=0;i<count;++i){float a=-1.5707963f+6.2831853f*float(i)/120.f,b=-1.5707963f+6.2831853f*std::min(float(i+1)/120.f,fraction);dc->DrawLine({cx+r*cosf(a),cy+r*sinf(a)},{cx+r*cosf(b),cy+r*sinf(b)},brush.get(),4);}
+            float end=-1.5707963f+6.2831853f*fraction;dc->FillEllipse(D2D1::Ellipse({cx+r*cosf(end),cy+r*sinf(end)},3,3),brush.get());break;}
         case Glyph::TimerRuler:{
             const float baseline=y+mark.height*.67f,step=(s-18.f)/30.f,selected=std::clamp(mark.value,0.f,1.f)*30.f;
             for(int i=0;i<=30;++i){float distance=std::abs(float(i)-selected);float alpha=highContrast?1.f:std::clamp(1.f-distance/17.f,.18f,1.f);brush->SetColor(highContrast?color(fg):D2D1::ColorF(1.f,.60f,.23f));brush->SetOpacity(alpha);float height=(i%5==0?37.f:24.f);dc->DrawLine({x+9+i*step,baseline-height},{x+9+i*step,baseline},brush.get(),i%5==0?2.8f:2.2f);}
@@ -130,12 +143,13 @@ void Renderer::draw(float w,float h,float dpi,const std::vector<Line>& lines,boo
             brush->SetColor(color(fg));brush->SetOpacity(.23f);dc->DrawEllipse(D2D1::Ellipse({cx,cy},r,r),brush.get(),1.3f);
             for(int i=0;i<60;++i){float a=-1.5707963f+i*6.2831853f/60.f,major=i%5==0?1.f:0.f;float inner=r-(major?13.f:7.f);brush->SetOpacity(major?.85f:.37f);dc->DrawLine({cx+inner*cosf(a),cy+inner*sinf(a)},{cx+r*cosf(a),cy+r*sinf(a)},brush.get(),major?2.1f:1.1f);}
             brush->SetOpacity(.36f);dc->DrawEllipse(D2D1::Ellipse({cx,cy-s*.13f},s*.15f,s*.15f),brush.get(),1.1f);
-            float a=-1.5707963f+6.2831853f*std::clamp(mark.value,0.f,1.f);brush->SetOpacity(1);brush->SetColor(highContrast?color(fg):D2D1::ColorF(1.f,.61f,.24f));dc->DrawLine({cx-13*cosf(a),cy-13*sinf(a)},{cx+(r-18)*cosf(a),cy+(r-18)*sinf(a)},brush.get(),2.4f);dc->FillEllipse(D2D1::Ellipse({cx,cy},3.5f,3.5f),brush.get());break;}
+            float minute=-1.5707963f+6.2831853f*fmodf(mark.value/30.f,1.f);brush->SetOpacity(.85f);dc->DrawLine({cx,cy-s*.13f},{cx+s*.12f*cosf(minute),cy-s*.13f+s*.12f*sinf(minute)},brush.get(),1.3f);
+            float a=-1.5707963f+6.2831853f*fmodf(mark.value,1.f);brush->SetOpacity(1);brush->SetColor(highContrast?color(fg):D2D1::ColorF(1.f,.61f,.24f));dc->DrawLine({cx-13*cosf(a),cy-13*sinf(a)},{cx+(r-18)*cosf(a),cy+(r-18)*sinf(a)},brush.get(),2.4f);dc->FillEllipse(D2D1::Ellipse({cx,cy},3.5f,3.5f),brush.get());break;}
         case Glyph::AlarmBell:{D2D1_MATRIX_3X2_F before;dc->GetTransform(&before);dc->SetTransform(D2D1::Matrix3x2F::Rotation(mark.value,{x+s*.5f,y+s*.55f})*before);if(!highContrast)brush->SetColor(D2D1::ColorF(1.f,.68f,.32f));ellipse(.5f,.55f,.32f);stroke(.5f,.55f,.5f,.34f);stroke(.5f,.55f,.66f,.65f);stroke(.22f,.12f,.07f,.27f);stroke(.78f,.12f,.93f,.27f);stroke(.3f,.84f,.21f,.95f);stroke(.7f,.84f,.79f,.95f);dc->SetTransform(before);break;}
         case Glyph::Camera:dc->DrawRoundedRectangle(D2D1::RoundedRect({x+s*.08f,y+s*.25f,x+s*.92f,y+s*.82f},s*.09f,s*.09f),brush.get(),1.6f);ellipse(.5f,.53f,.17f);stroke(.3f,.25f,.38f,.13f);stroke(.38f,.13f,.62f,.13f);stroke(.62f,.13f,.7f,.25f);break;
         case Glyph::CalendarIcon:dc->DrawRoundedRectangle(D2D1::RoundedRect({x+s*.12f,y+s*.2f,x+s*.88f,y+s*.88f},s*.08f,s*.08f),brush.get(),1.6f);stroke(.12f,.4f,.88f,.4f);stroke(.32f,.1f,.32f,.3f);stroke(.68f,.1f,.68f,.3f);stroke(.3f,.59f,.45f,.59f);stroke(.55f,.72f,.7f,.72f);break;
         case Glyph::Wavebar:{if(!highContrast)brush->SetColor(D2D1::ColorF(.53f,.48f,.72f));float barHeight=std::max(2.f,std::min(12.f,mark.height)*std::clamp(mark.value,0.f,1.f));dc->FillRoundedRectangle(D2D1::RoundedRect({x,y+(mark.height-barHeight)/2,x+s,y+(mark.height+barHeight)/2},s/2,s/2),brush.get());break;}
-        case Glyph::RoundButton:{if(!highContrast)brush->SetColor(mark.active?D2D1::ColorF(.16f,.46f,.29f):D2D1::ColorF(.22f,.23f,.24f));brush->SetOpacity(.6f);dc->FillEllipse(D2D1::Ellipse({x+s/2,y+s/2},s/2,s/2),brush.get());brush->SetOpacity(.35f);dc->DrawEllipse(D2D1::Ellipse({x+s/2,y+s/2},s/2-3,s/2-3),brush.get(),1);break;}
+        case Glyph::RoundButton:{if(!highContrast)brush->SetColor(mark.value>0?D2D1::ColorF(.50f,.12f,.15f):mark.active?D2D1::ColorF(.16f,.46f,.29f):D2D1::ColorF(.22f,.23f,.24f));brush->SetOpacity(.6f);dc->FillEllipse(D2D1::Ellipse({x+s/2,y+s/2},s/2,s/2),brush.get());brush->SetOpacity(.35f);dc->DrawEllipse(D2D1::Ellipse({x+s/2,y+s/2},s/2-3,s/2-3),brush.get(),1);break;}
         case Glyph::Card:if(editorTheme&&!highContrast){brush->SetColor(D2D1::ColorF(.12f,.16f,.21f));brush->SetOpacity(.95f);}else brush->SetOpacity(highContrast?.18f:.055f);dc->FillRoundedRectangle(D2D1::RoundedRect({x,y,x+s,y+mark.height},10,10),brush.get());break;
         case Glyph::Slider:{brush->SetOpacity(.10f);dc->FillRoundedRectangle(D2D1::RoundedRect({x,y,x+s,y+24},12,12),brush.get());float width=12+(s-24)*std::clamp(mark.value,0.f,1.f);brush->SetOpacity(mark.disabled?.1f:.75f);dc->FillRoundedRectangle(D2D1::RoundedRect({x,y,x+width+12,y+24},12,12),brush.get());brush->SetOpacity(mark.disabled?.3f:1);dc->FillEllipse(D2D1::Ellipse({x+width,y+12},10,10),brush.get());break;}
         case Glyph::Close:stroke(.25f,.25f,.75f,.75f);stroke(.75f,.25f,.25f,.75f);break;
@@ -187,6 +201,7 @@ void Renderer::draw(float w,float h,float dpi,const std::vector<Line>& lines,boo
         brush->SetColor(color(fg));
         if(line.glow&&!highContrast){brush->SetColor(D2D1::ColorF(.72f,.58f,1.f));brush->SetOpacity(.16f);for(auto shift:{-1.5f,1.5f})dc->DrawTextW(line.text.c_str(),static_cast<UINT32>(line.text.size()),format.get(),D2D1::RectF(line.x+shift,line.y+shift,line.x+line.width+shift,line.y+line.size*1.6f+shift),brush.get());}
         if(editorTheme&&line.mono&&!highContrast)brush->SetColor(D2D1::ColorF(.42f,.82f,.73f));
+        if(!highContrast&&line.tone)brush->SetColor(line.tone==1?D2D1::ColorF(1.f,.62f,.26f):line.tone==2?D2D1::ColorF(.35f,.87f,.52f):D2D1::ColorF(1.f,.36f,.38f));
         brush->SetOpacity(line.secondary?.72f:1.f);
         dc->DrawTextW(line.text.c_str(),static_cast<UINT32>(line.text.size()),format.get(),D2D1::RectF(line.x,line.y,line.width>0?line.x+line.width:w-18,line.y+line.size*1.6f),brush.get(),D2D1_DRAW_TEXT_OPTIONS_CLIP);
     }

@@ -14,6 +14,9 @@ int main(){
         auto file=root/L"settings.json";Settings s;s.touch=true;s.alignment=2;s.followPointer=false;s.iconOnly=true;
         require(addReference(s,L"C:\\missing\\日本語.txt"));require(!addReference(s,L"c:/missing/日本語.txt"));require(!addReference(s,L"relative.txt"));
         save(file,s);auto restored=load(file);require(restored.paths==s.paths&&restored.touch&&restored.alignment==2&&!restored.followPointer&&restored.iconOnly);
+        require(restored.preferredActivity==IslandActivity::Automatic&&restored.incomingCallAlerts);
+        for(int i=0;i<5;++i){s.preferredActivity=IslandActivity(i);s.incomingCallAlerts=false;save(file,s);restored=load(file);require(restored.preferredActivity==s.preferredActivity&&!restored.incomingCallAlerts);}
+        {std::ofstream out(file);out<<"{\"version\":1,\"preferredActivity\":99}";}require(load(file).preferredActivity==IslandActivity::Automatic);
         s.search.enabled=false;s.search.applications=false;s.search.files=false;s.search.windows=false;s.search.fuzzy=false;s.search.key='F';s.search.modifiers=MOD_CONTROL|MOD_SHIFT;
         save(file,s);restored=load(file);require(!restored.search.enabled&&!restored.search.applications&&!restored.search.files&&!restored.search.windows&&!restored.search.fuzzy);require(restored.search.key=='F'&&restored.search.modifiers==(MOD_CONTROL|MOD_SHIFT));
         s.search.provider=1;s.search.scope=1;s.search.sides=2;s.search.key=VK_SPACE;s.search.modifiers=MOD_ALT;

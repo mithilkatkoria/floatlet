@@ -14,7 +14,7 @@ $wide=[Text.Encoding]::Unicode.GetString($bytes)
 foreach ($content in @($ascii,$wide)) {
     if ($content -match '(?i)[A-Z]:[\\/]Users[\\/]' -or $content -match '(?i)OneDrive[ -]') { throw 'Release privacy check failed: personal build path in executable. Use scripts/release.ps1.' }
 }
-$dest=Join-Path $root "packages\Floatlet-0.8.0-$Architecture"
+$dest=Join-Path $root "packages\Floatlet-0.8.1-$Architecture"
 New-Item -ItemType Directory -Path $dest -Force | Out-Null
 $inputs=@($exe,(Join-Path $root 'README.md'),(Join-Path $root 'LICENSE'),(Join-Path $root 'CHANGELOG.md'),(Join-Path $PSScriptRoot 'install.ps1'),(Join-Path $PSScriptRoot 'uninstall.ps1'),(Join-Path $root 'assets/fonts/Figtree-OFL.txt'),(Join-Path $root 'assets/fonts/EBGaramond-OFL.txt'))
 $archive=@()
