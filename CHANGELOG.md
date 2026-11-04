@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.8.2 - 2026-11-04
+
+- The draey.dev credit opens the creator portfolio from the island, desktop settings and website.
+
+## 0.8.1 - 2026-11-01
+
+- Choose Automatic, Music, Timer, Stopwatch or Calls in Settings > Island activity. The same selection controls the pill, artwork and click actions.
+- Decide whether incoming calls can interrupt your preferred activity. Finished timers and alarms still alert you.
+- Set exact hours, minutes and seconds inside the island, with keyboard entry, arrows, scrolling and clear start/cancel actions.
+- Running timers show a remaining-time ring, finish time and pause/resume controls. Durations over an hour use hours:minutes:seconds.
+- Stopwatch start stays in the panel, with precise lap splits, a moving minute subdial and clear start/stop colours.
+- Clock animation only runs while visible. Hidden stopwatch timing uses elapsed time without a background frame loop.
+- Website clock preview and download links updated with the desktop release.
+
 ## 0.8.0 - 2026-10-28
 
 - Refined native Search with borderless icons, keyboard selection and bounded local indexing.

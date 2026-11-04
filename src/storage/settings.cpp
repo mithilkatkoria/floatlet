@@ -19,6 +19,9 @@ Settings load(const std::filesystem::path& file) {
     s.alignment=static_cast<int>(align); s.touch=root.GetNamedBoolean(L"touch",false);
     s.followPointer=root.GetNamedBoolean(L"followPointer",true);
     s.iconOnly=root.GetNamedBoolean(L"iconOnly",false);s.reduceMotion=root.GetNamedBoolean(L"reduceMotion",false);s.callControls=root.GetNamedBoolean(L"callControls",true);
+    double activity=root.GetNamedNumber(L"preferredActivity",0);
+    if(activity>=0&&activity<=4&&activity==int(activity))s.preferredActivity=IslandActivity(int(activity));
+    s.incomingCallAlerts=root.GetNamedBoolean(L"incomingCallAlerts",true);
     auto search=root.GetNamedObject(L"search",JsonObject());
     s.search.enabled=search.GetNamedBoolean(L"enabled",true);s.search.applications=search.GetNamedBoolean(L"applications",true);s.search.files=search.GetNamedBoolean(L"files",true);s.search.windows=search.GetNamedBoolean(L"windows",true);s.search.fuzzy=search.GetNamedBoolean(L"fuzzy",true);
     auto key=search.GetNamedNumber(L"key",32),modifiers=search.GetNamedNumber(L"modifiers",1);
@@ -43,6 +46,7 @@ void save(const std::filesystem::path& file,const Settings& s) {
     root.Insert(L"followPointer",JsonValue::CreateBooleanValue(s.followPointer));
     root.Insert(L"iconOnly",JsonValue::CreateBooleanValue(s.iconOnly));
     root.Insert(L"reduceMotion",JsonValue::CreateBooleanValue(s.reduceMotion));root.Insert(L"callControls",JsonValue::CreateBooleanValue(s.callControls));
+    root.Insert(L"preferredActivity",JsonValue::CreateNumberValue(int(s.preferredActivity)));root.Insert(L"incomingCallAlerts",JsonValue::CreateBooleanValue(s.incomingCallAlerts));
     JsonObject search;search.Insert(L"enabled",JsonValue::CreateBooleanValue(s.search.enabled));search.Insert(L"applications",JsonValue::CreateBooleanValue(s.search.applications));search.Insert(L"files",JsonValue::CreateBooleanValue(s.search.files));search.Insert(L"windows",JsonValue::CreateBooleanValue(s.search.windows));search.Insert(L"fuzzy",JsonValue::CreateBooleanValue(s.search.fuzzy));search.Insert(L"key",JsonValue::CreateNumberValue(s.search.key));search.Insert(L"modifiers",JsonValue::CreateNumberValue(s.search.modifiers));search.Insert(L"provider",JsonValue::CreateNumberValue(s.search.provider));search.Insert(L"scope",JsonValue::CreateNumberValue(s.search.scope));search.Insert(L"sides",JsonValue::CreateNumberValue(s.search.sides));search.Insert(L"extended",JsonValue::CreateBooleanValue(s.search.extended));root.Insert(L"search",search);
     JsonArray paths; for(auto& path:s.paths) paths.Append(JsonValue::CreateStringValue(path)); root.Insert(L"paths",paths);
     std::string raw=winrt::to_string(root.Stringify()); if(raw.size()>1024*1024) throw std::runtime_error("Settings exceed limit");

@@ -30,7 +30,7 @@ for ($attempt=0; $attempt -lt 12; $attempt++) {
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'uninstall.ps1') -Destination $install -Force
 $authConfig=Join-Path $Source 'auth.json'
 if (Test-Path -LiteralPath $authConfig) { Copy-Item -LiteralPath $authConfig -Destination (Join-Path $install 'auth.json') -Force }
-Set-Content -LiteralPath (Join-Path $install 'installed.marker') -Value 'Floatlet 0.8.0'
+Set-Content -LiteralPath (Join-Path $install 'installed.marker') -Value 'Floatlet 0.8.2'
 $shell=New-Object -ComObject WScript.Shell
 $shortcut=$shell.CreateShortcut((Join-Path ([Environment]::GetFolderPath('Programs')) 'Floatlet.lnk'))
 $shortcut.TargetPath=$target
