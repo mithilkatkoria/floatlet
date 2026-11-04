@@ -16,7 +16,7 @@ class SettingsWindow {
 public:
     enum Action { IconOnly=1, FollowPointer, Touch, ReduceMotion, Calls, AlignLeft, AlignCenter, AlignRight,
         SearchEnabled, SearchProvider, SearchApps, SearchFiles, SearchWindows,
-        SearchFuzzy, SearchOptions, Calendar, Startup, Website, SignOut, ActivityAuto=30, ActivityMusic, ActivityTimer, ActivityStopwatch, ActivityCall, IncomingAlerts };
+        SearchFuzzy, SearchOptions, Calendar, Startup, Website, SignOut, Portfolio, ActivityAuto=30, ActivityMusic, ActivityTimer, ActivityStopwatch, ActivityCall, IncomingAlerts };
     SettingsWindow(HWND,Settings& source,std::function<void(int)> action,std::wstring identity={}):settings(source),perform(std::move(action)),accountEmail(std::move(identity)){}
     ~SettingsWindow(){if(window)DestroyWindow(window);}
     HWND native()const{return window;}
@@ -105,7 +105,10 @@ private:
             text(L"Floatlet",65,28,112,21,ink,true);text(L"Your desktop companion",24,76,150,11,muted);
             const wchar_t* tabs[]={L"Home",L"Appearance",L"Search",L"Connections",L"Island activity"};
             for(int i=0;i<5;++i){float y=126.f+i*48.f;bool active=page==i;if(active||hover==i)box(12,y,166,40,9,active?selected:RGB(239,237,231));icon(i==4?1:i,26,y+10,active?ink:muted);text(tabs[i],60,y+10,111,14,active?ink:muted,active);hit(12,y,166,40,100+i,true);}
-            line(24,h-116,142);text(L"Free. Open source.",24,h-94,150,12,ink);text(L"made by draey.dev",24,h-66,150,11,muted);
+            line(24,h-116,142);text(L"Free. Open source.",24,h-94,150,12,ink);const bool creditHovered = hover == static_cast<int>(hits.size());
+            text(L"made by draey.dev",24,h-66,150,11,creditHovered ? accent : muted);
+            if(creditHovered) line(24,h-49,96,accent);
+            hit(18,h-70,112,24,Portfolio,true);
             text(L"Floatlet for Windows",24,h-40,150,10,muted);
             paint.target->PushAxisAlignedClip(D2D1::RectF(194*s,12*s,(w-12)*s,(h-12)*s),D2D1_ANTIALIAS_MODE_ALIASED);
             paint.target->SetTransform(D2D1::Matrix3x2F::Translation(0,-scroll*s));

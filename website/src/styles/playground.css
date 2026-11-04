@@ -62,3 +62,5 @@
 #island-demo[data-reduced=true] #exact-timer-form{animation:none}
 
 #island-demo[data-editing-time=true] :is(.clock-face,.clock-actions,.timer-options,.clock-browser-note){visibility:hidden}
+
+.creator-credit a{color:inherit;text-decoration:underline;text-underline-offset:3px}.creator-credit a:focus-visible{outline:2px solid currentColor;outline-offset:3px}

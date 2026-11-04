@@ -42,7 +42,7 @@ if(demo){
  all('[data-mode]').forEach(b=>b.onclick=e=>{e.stopPropagation();select(b.dataset.mode as Mode);inside=!!b.closest('.capsule')});
  q('#capsule').onpointerenter=()=>{if(demo!.dataset.minimized==='true')return;inside=true;clearTimeout(leave);if(!notice){state=transition(state,'hover');render()}};
  q('#capsule').onpointerleave=()=>{if(!inside||demo!.dataset.editingTime==='true')return;inside=false;leave=setTimeout(()=>{state=transition(state,'leave');render()},300)};
- q('#capsule').onclick=e=>{if((e.target as HTMLElement).closest('button,input,label'))return;if(notice){const was=notice;select(alert?'clock':was==='calendar'?'calendar':'files');return}if(state.mode==='idle'||state.mode==='peek')select(alert||running||elapsed?'clock':'music')};
+ q('#capsule').onclick=e=>{if((e.target as HTMLElement).closest('a,button,input,label'))return;if(notice){const was=notice;select(alert?'clock':was==='calendar'?'calendar':'files');return}if(state.mode==='idle'||state.mode==='peek')select(alert||running||elapsed?'clock':'music')};
  q('#capsule').onkeydown=e=>{if(e.target===q('#capsule')&&(e.key==='Enter'||e.key===' ')){e.preventDefault();select(alert||running||elapsed?'clock':'music')}};
  demo.onkeydown=e=>{if(e.key==='Escape'){if(demo!.dataset.editingTime==='true'){q('#cancel-exact').click();e.stopPropagation();return}clearTimeout(noticeTimer);notice='';state=transition(state,'escape');render();q('#capsule').focus();announce(alert?'Collapsed. Clock alert remains active.':'Preview collapsed.')}};
  q('#pin-demo').onclick=()=>{state=transition(state,'pin');render()};

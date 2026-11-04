@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.2 - 2026-11-04
+
+- The draey.dev credit opens the creator portfolio from the island, desktop settings and website.
+
 ## 0.8.1 - 2026-11-01
 
 - Choose Automatic, Music, Timer, Stopwatch or Calls in Settings > Island activity. The same selection controls the pill, artwork and click actions.
